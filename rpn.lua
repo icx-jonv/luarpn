@@ -18,6 +18,8 @@ local entry_line = ""
 local RadixMode = "Hex"
 local base = {Hex = 16, Dec = 10, Bin = 10}
 
+local KEY_ESCAPE = 27
+
 -- Item Definitions
 -------------------
 Dec = class()
@@ -107,28 +109,95 @@ function StackClass:Addition()
     if #self.stack < 2 then return end
     local a = table.remove(self.stack)
     local b = table.remove(self.stack)
-    table.insert(self.stack, a:new(a.value + b.value))
+    table.insert(self.stack, b:new(a.value + b.value))
 end
 
 function StackClass:Subtract()
     if #self.stack < 2 then return end
     local a = table.remove(self.stack)
     local b = table.remove(self.stack)
-    table.insert(self.stack, a:new(b.value - a.value))
+    table.insert(self.stack, b:new(b.value - a.value))
 end
 
 function StackClass:Multiply()
     if #self.stack < 2 then return end
     local a = table.remove(self.stack)
     local b = table.remove(self.stack)
-    table.insert(self.stack, a:new(a.value * b.value))
+    table.insert(self.stack, b:new(a.value * b.value))
 end
 
 function StackClass:Divide()
     if #self.stack < 2 then return end
     local divisor = table.remove(self.stack)
     local numerator = table.remove(self.stack)
-    table.insert(self.stack, divisor:new(numerator.value/divisor.value))
+    table.insert(self.stack, numerator:new(numerator.value/divisor.value))
+end
+
+function StackClass:Power()
+    if #self.stack < 2 then return end
+    local x = table.remove(self.stack)
+    local y = table.remove(self.stack)
+    table.insert(self.stack, y:new(y.value^x.value))
+end
+
+function StackClass:Sqrt()
+    if #self.stack < 1 then return end
+    local x = table.remove(self.stack)
+    table.insert(self.stack, x:new(math.sqrt(x.value)))
+end
+
+function StackClass:Square()
+    if #self.stack < 1 then return end
+    local x = table.remove(self.stack)
+    table.insert(self.stack, x:new(x.value^2))
+end
+
+function StackClass:NatLog()
+    if #self.stack < 1 then return end
+    local x = table.remove(self.stack)
+    table.insert(self.stack, x:new(math.log(x.value)))
+end
+
+function StackClass:Exp()
+    if #self.stack < 1 then return end
+    local x = table.remove(self.stack)
+    table.insert(self.stack, x:new(math.exp(x.value)))
+end
+
+function StackClass:Log10()
+    if #self.stack < 1 then return end
+    local x = table.remove(self.stack)
+    table.insert(self.stack, x:new(math.log10(x.value)))
+end
+
+function StackClass:Pow10()
+    if #self.stack < 1 then return end
+    local x = table.remove(self.stack)
+    table.insert(self.stack, x:new(10^x.value))
+end
+
+function StackClass:Mod()
+    if #self.stack < 2 then return end
+    local x = table.remove(self.stack)
+    local y = table.remove(self.stack)
+    table.insert(self.stack, x:new(math.fmod(y.value, x.value)))
+end
+
+function StackClass:Factorial()
+    if #self.stack < 1 then return end
+    local x = table.remove(self.stack)
+    real, frac = math.modf(x.value)
+    if frac == 0 and real > 0 then
+        for i=real-1,2,-1 do
+            real = real * i
+        end
+    else
+        table.insert(self.stack, x)
+        self.status = "Bad argument type"
+        return false
+    end
+    table.insert(self.stack, x:new(real))
+    return true
 end
 
 function StackClass:Reciprocal()
@@ -241,6 +310,60 @@ keymap['/'] = function(stack)
     entry_line = ""
 end
 
+keymap['y'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:Power()
+    entry_line = ""
+end
+
+keymap['q'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:Sqrt()
+    entry_line = ""
+end
+
+keymap['l'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:NatLog()
+    entry_line = ""
+end
+
+keymap['L'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:Exp()
+    entry_line = ""
+end
+
+keymap['g'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:Log10()
+    entry_line = ""
+end
+
+keymap['G'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:Pow10()
+    entry_line = ""
+end
+
+keymap['m'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:Mod()
+    entry_line = ""
+end
+
+keymap['M'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:Factorial()
+    entry_line = ""
+end
+
+keymap['Q'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:Square()
+    entry_line = ""
+end
+
 keymap['W'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Reciprocal()
@@ -293,11 +416,11 @@ function draw_entry_line()
     mvaddstr(window_y-1, 0, string.format("%"..tostring(window_x-1).."s",entry_line))
 end
 
-while input_char ~= 'Q' do
+while input_char ~= KEY_ESCAPE do -- not a curses reference
     stack:redraw()
     draw_entry_line()
     local key = stdscr:getch()
-    if key < 256 then
+    if key < 256 and key > 31 then
         input_char = string.char(key)
     else
         input_char = key
