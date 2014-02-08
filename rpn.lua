@@ -16,6 +16,30 @@ local mvaddstr = function (...) stdscr:mvaddstr(...) end
 
 local entry_line = ""
 
+-- Item Definitions
+-------------------
+Dec = class()
+function Dec:__init(value)
+    if type(value) == "string" then value = tonumber(value) end
+    self.value = value or 0
+end
+Dec.Description = "Decimal"
+function Dec:__tostring()
+    return tostring(self.value)
+end
+function Dec:new(item) return Dec(item or self.value) end
+
+Hex = class()
+function Hex:__init(value)
+    if type(value) == "string" then value = tonumber(value) end
+    self.value = value or 0
+end
+Hex.Description = "Hex"
+function Hex:__tostring()
+    return string.format("0x%x", self.value)
+end
+function Hex:new(item) return Hex(item or self.value) end
+
 -- Stack Class definition
 -------------------------
 StackClass = class()
@@ -47,7 +71,6 @@ function StackClass:redraw()
             mvaddstr(i, 0, string.format(format, '*'..tostring(stack_item), num_string))
         end
     end
-    stdscr:move(window_y-1, 0)
 end
 
 function StackClass:AddItem(item)
@@ -59,38 +82,43 @@ function StackClass:DropItem()
 end
 
 function StackClass:Addition()
-    if #self.stack <2 then return end
-    local a = table.remove(self.stack) + table.remove(self.stack)
-    table.insert(self.stack, a)
+    if #self.stack < 2 then return end
+    local a = table.remove(self.stack)
+    local b = table.remove(self.stack)
+    table.insert(self.stack, a:new(a.value + b.value))
 end
 
 function StackClass:Subtract()
     if #self.stack < 2 then return end
-    local a = - table.remove(self.stack) + table.remove(self.stack)
-    table.insert(self.stack, a)
+    local a = table.remove(self.stack)
+    local b = table.remove(self.stack)
+    table.insert(self.stack, a:new(b.value - a.value))
 end
 
 function StackClass:Multiply()
     if #self.stack < 2 then return end
-    local a = table.remove(self.stack) * table.remove(self.stack)
-    table.insert(self.stack, a)
+    local a = table.remove(self.stack)
+    local b = table.remove(self.stack)
+    table.insert(self.stack, a:new(a.value * b.value))
 end
 
 function StackClass:Divide()
     if #self.stack < 2 then return end
     local divisor = table.remove(self.stack)
     local numerator = table.remove(self.stack)
-    table.insert(self.stack, numerator/divisor)
+    table.insert(self.stack, divisor:new(numerator.value/divisor.value))
 end
 
 function StackClass:Reciprocal()
     if #self.stack < 1 then return end
-    table.insert(self.stack, 1/table.remove(self.stack))
+    local a = table.remove(self.stack)
+    table.insert(self.stack, a:new(1/a.value))
 end
 
 function StackClass:Negate()
     if #self.stack < 1 then return end
-    table.insert(self.stack, -table.remove(self.stack))
+    local a = table.remove(self.stack)
+    table.insert(self.stack, a:new(-a.value))
 end
 
 function StackClass:Swap()
@@ -105,7 +133,7 @@ function StackClass:Duplicate()
     if #self.stack > 0 then
         local a = table.remove(self.stack)
         table.insert(self.stack, a)
-        table.insert(self.stack, a)
+        table.insert(self.stack, a:new())
     end
 end
 
@@ -145,31 +173,31 @@ keymap[curses.KEY_BACKSPACE] = function(stack)
 end
 
 keymap['+'] = function(stack)
-    stack:AddItem(tonumber(entry_line))
+    if entry_line ~= "" then stack:AddItem(Dec(entry_line)) end
     stack:Addition()
     entry_line = ""
 end
 
 keymap['-'] = function(stack)
-    stack:AddItem(tonumber(entry_line))
+    if entry_line ~= "" then stack:AddItem(Dec(entry_line)) end
     stack:Subtract()
     entry_line = ""
 end
 
 keymap['*'] = function(stack)
-    stack:AddItem(tonumber(entry_line))
+    if entry_line ~= "" then stack:AddItem(Dec(entry_line)) end
     stack:Multiply()
     entry_line = ""
 end
 
 keymap['/'] = function(stack)
-    stack:AddItem(tonumber(entry_line))
+    if entry_line ~= "" then stack:AddItem(Dec(entry_line)) end
     stack:Divide()
     entry_line = ""
 end
 
 keymap['W'] = function(stack)
-    stack:AddItem(tonumber(entry_line))
+    if entry_line ~= "" then stack:AddItem(Dec(entry_line)) end
     stack:Reciprocal()
     entry_line = ""
 end
@@ -182,13 +210,13 @@ keymap['\n'] = function(stack)
     if entry_line == "" then
         stack:Duplicate()
     else
-        stack:AddItem(tonumber(entry_line))
+        stack:AddItem(Dec(entry_line))
         entry_line=""
     end
 end
 
 keymap['w'] = function(stack)
-    stack:AddItem(tonumber(entry_line))
+    if entry_line ~= "" then stack:AddItem(Dec(entry_line)) end
     stack:Swap()
     entry_line = ""
 end
@@ -197,18 +225,14 @@ keymap['n'] = function(stack)
     if entry_line == "" then
         stack:Negate()
     elseif string.find(entry_line, 'e%-') then
-        stack.status="found e-"
         local exp, exp_end = string.find(entry_line, 'e%-')
         entry_line = string.sub(entry_line, 1, exp-1) .. 'e' .. string.sub(entry_line, exp_end+1)
     elseif string.find(entry_line, 'e') then
-        stack.status="found e"
         local exp = string.find(entry_line, 'e')
         entry_line = string.sub(entry_line, 1, exp) .. '-' .. string.sub(entry_line, exp+1)
     elseif string.find(entry_line, '^%-') then
-        stack.status="negating negative number"
         entry_line = string.sub(entry_line, 2)
     else
-        stack.status="negating postive number"
         entry_line = '-' .. entry_line
     end
 end
@@ -224,7 +248,7 @@ function catNumber(number)
 end
 
 function draw_entry_line()
-    stdscr:addstr(string.format("%"..tostring(window_x-1).."s",entry_line))
+    mvaddstr(window_y-1, 0, string.format("%"..tostring(window_x-1).."s",entry_line))
 end
 
 while input_char ~= 'Q' do
