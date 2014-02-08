@@ -15,6 +15,8 @@ local window_x = math.min(window_x, 99)
 local mvaddstr = function (...) stdscr:mvaddstr(...) end
 
 local entry_line = ""
+local RadixMode = "Hex"
+local base = {Hex = 16, Dec = 10, Bin = 10}
 
 -- Item Definitions
 -------------------
@@ -29,16 +31,24 @@ function Dec:__tostring()
 end
 function Dec:new(item) return Dec(item or self.value) end
 
-Hex = class()
-function Hex:__init(value)
-    if type(value) == "string" then value = tonumber(value) end
+Bin = class()
+function Bin:__init(value)
+    if type(value) == "string" and string.find(entry_line, "^# ") then
+        value = tonumber(string.sub(entry_line, 3), base[RadixMode])
+    end
     self.value = value or 0
 end
-Hex.Description = "Hex"
-function Hex:__tostring()
-    return string.format("0x%x", self.value)
+Bin.Description = "Bin"
+function Bin:__tostring()
+    if RadixMode == "Hex" then
+        return string.format("# %xh", math.floor(self.value))
+    elseif RadixMode == "Bin" then
+        return string.format("# %bb", math.floor(self.value))
+    elseif RadixMode == "Dec" then
+        return string.format("# %dd", math.floor(self.value))
+    end
 end
-function Hex:new(item) return Hex(item or self.value) end
+function Bin:new(item) return Bin(item or self.value) end
 
 -- Stack Class definition
 -------------------------
@@ -74,7 +84,19 @@ function StackClass:redraw()
 end
 
 function StackClass:AddItem(item)
-    table.insert(self.stack, item)
+    if item == "# " then
+        item = ""
+    elseif string.find(item, "e$") then
+        item = item .. "0"
+    end
+
+    if item == "" then
+        self:Duplicate()
+    elseif string.find(item, "^# .") then
+        table.insert(self.stack, Bin(item))
+    else
+        table.insert(self.stack, Dec(item))
+    end
 end
 
 function StackClass:DropItem()
@@ -150,8 +172,29 @@ keymap['6'] = function(stack) catNumber('6') end
 keymap['7'] = function(stack) catNumber('7') end
 keymap['8'] = function(stack) catNumber('8') end
 keymap['9'] = function(stack) catNumber('9') end
+keymap['a'] = function(stack) if RadixMode == "Hex" then keymap['#'](stack) catNumber('a') end end
+keymap['b'] = function(stack) if RadixMode == "Hex" then keymap['#'](stack) catNumber('b') end end
+keymap['c'] = function(stack) if RadixMode == "Hex" then keymap['#'](stack) catNumber('c') end end
+keymap['d'] = function(stack) if RadixMode == "Hex" then keymap['#'](stack) catNumber('d') end end
+keymap['e'] = function(stack) if RadixMode == "Hex" then keymap['#'](stack) catNumber('e') end end
+keymap['f'] = function(stack) if RadixMode == "Hex" then keymap['#'](stack) catNumber('f') end end
+keymap['A'] = keymap['a']
+keymap['B'] = keymap['b']
+keymap['C'] = keymap['c']
+keymap['D'] = keymap['d']
+keymap['E'] = keymap['e']
+keymap['F'] = keymap['f']
+
+keymap['#'] = function(stack)
+    if entry_line == "" then
+        entry_line = "# "
+    elseif not string.find(entry_line, "^# ") then
+        entry_line = "# " .. entry_line
+    end
+end
+
 keymap['.'] = function(stack)
-    if not string.find(entry_line, '%.') then
+    if not string.find(entry_line, '%.') and not string.find(entry_line, "^# ") then
         catNumber('.')
     end
 end
@@ -159,7 +202,7 @@ end
 keymap['x'] = function (stack)
     if entry_line == "" then
         entry_line = "1e"
-    elseif not string.find(entry_line, 'e') then
+    elseif not string.find(entry_line, 'e') and not string.find(entry_line, "^# ") then
         catNumber('e')
     end
 end
@@ -167,62 +210,61 @@ end
 keymap[curses.KEY_BACKSPACE] = function(stack)
     if entry_line == "" then
         stack:DropItem()
+    elseif entry_line == "# " then
+        entry_line = ""
     else
         entry_line = string.sub(entry_line, 1, -2)
     end
 end
 
 keymap['+'] = function(stack)
-    if entry_line ~= "" then stack:AddItem(Dec(entry_line)) end
+    if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Addition()
     entry_line = ""
 end
 
 keymap['-'] = function(stack)
-    if entry_line ~= "" then stack:AddItem(Dec(entry_line)) end
+    if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Subtract()
     entry_line = ""
 end
 
 keymap['*'] = function(stack)
-    if entry_line ~= "" then stack:AddItem(Dec(entry_line)) end
+    if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Multiply()
     entry_line = ""
 end
 
 keymap['/'] = function(stack)
-    if entry_line ~= "" then stack:AddItem(Dec(entry_line)) end
+    if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Divide()
     entry_line = ""
 end
 
 keymap['W'] = function(stack)
-    if entry_line ~= "" then stack:AddItem(Dec(entry_line)) end
+    if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Reciprocal()
     entry_line = ""
 end
 
 keymap['\n'] = function(stack)
-    if string.find(entry_line, "e$") then
-        entry_line = entry_line .. "0"
-    end
-
-    if entry_line == "" then
-        stack:Duplicate()
-    else
-        stack:AddItem(Dec(entry_line))
-        entry_line=""
-    end
+    stack:AddItem(entry_line)
+    entry_line=""
 end
+keymap[' '] = keymap['\n']
+keymap[0xd] = keymap['\n']
+keymap[0xa] = keymap['\n']
 
 keymap['w'] = function(stack)
-    if entry_line ~= "" then stack:AddItem(Dec(entry_line)) end
+    if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Swap()
     entry_line = ""
 end
 
 keymap['n'] = function(stack)
-    if entry_line == "" then
+    if string.find(entry_line, "^# ") then
+        return
+    elseif entry_line == "" then
         stack:Negate()
     elseif string.find(entry_line, 'e%-') then
         local exp, exp_end = string.find(entry_line, 'e%-')
