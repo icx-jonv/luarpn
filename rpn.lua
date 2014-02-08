@@ -11,6 +11,7 @@ local stdscr = curses.stdscr()  -- it's a userdatum
 stdscr:keypad(1)
 stdscr:clear()
 local window_y, window_x = stdscr:getmaxyx()
+local window_x = math.min(window_x, 99)
 local mvaddstr = function (...) stdscr:mvaddstr(...) end
 
 local entry_line = ""
@@ -57,57 +58,47 @@ function StackClass:DropItem()
     table.remove(self.stack)
 end
 
-function StackClass:Addition(item)
-    if not item then
-        local a = table.remove(self.stack) + table.remove(self.stack)
-        table.insert(self.stack, a)
-    else
-        table.insert(self.stack, table.remove(self.stack)+item)
-    end
+function StackClass:Addition()
+    if #self.stack <2 then return end
+    local a = table.remove(self.stack) + table.remove(self.stack)
+    table.insert(self.stack, a)
 end
 
-function StackClass:Subtract(item)
-    if not item then
-        local a = - table.remove(self.stack) + table.remove(self.stack)
-        table.insert(self.stack, a)
-    else
-        table.insert(self.stack, table.remove(self.stack)-item)
-    end
+function StackClass:Subtract()
+    if #self.stack < 2 then return end
+    local a = - table.remove(self.stack) + table.remove(self.stack)
+    table.insert(self.stack, a)
 end
 
-function StackClass:Multiply(item)
-    if not item then
-        local a = table.remove(self.stack) * table.remove(self.stack)
-        table.insert(self.stack, a)
-    else
-        table.insert(self.stack, table.remove(self.stack)*item)
-    end
+function StackClass:Multiply()
+    if #self.stack < 2 then return end
+    local a = table.remove(self.stack) * table.remove(self.stack)
+    table.insert(self.stack, a)
 end
 
-function StackClass:Divide(item)
-    if not item then
-        local divisor = table.remove(self.stack)
-        local numerator = table.remove(self.stack)
-        table.insert(self.stack, numerator/divisor)
-    else
-        table.insert(self.stack,  table.remove(self.stack) / item)
-    end
+function StackClass:Divide()
+    if #self.stack < 2 then return end
+    local divisor = table.remove(self.stack)
+    local numerator = table.remove(self.stack)
+    table.insert(self.stack, numerator/divisor)
+end
+
+function StackClass:Reciprocal()
+    if #self.stack < 1 then return end
+    table.insert(self.stack, 1/table.remove(self.stack))
 end
 
 function StackClass:Negate()
+    if #self.stack < 1 then return end
     table.insert(self.stack, -table.remove(self.stack))
 end
 
-function StackClass:Swap(item)
+function StackClass:Swap()
+    if #self.stack < 2 then return end
     local a = table.remove(self.stack)
-    if not item then
-        local b = table.remove(self.stack)
-        table.insert(self.stack, a)
-        table.insert(self.stack, b)
-    else
-        table.insert(self.stack, item)
-        table.insert(self.stack, a)
-    end
+    local b = table.remove(self.stack)
+    table.insert(self.stack, a)
+    table.insert(self.stack, b)
 end
 
 function StackClass:Duplicate()
@@ -136,6 +127,15 @@ keymap['.'] = function(stack)
         catNumber('.')
     end
 end
+
+keymap['x'] = function (stack)
+    if entry_line == "" then
+        entry_line = "1e"
+    elseif not string.find(entry_line, 'e') then
+        catNumber('e')
+    end
+end
+
 keymap[curses.KEY_BACKSPACE] = function(stack)
     if entry_line == "" then
         stack:DropItem()
@@ -145,42 +145,40 @@ keymap[curses.KEY_BACKSPACE] = function(stack)
 end
 
 keymap['+'] = function(stack)
-    if entry_line == "" then
-        stack:Addition()
-    else
-        stack:Addition(tonumber(entry_line))
-        entry_line = ""
-    end
+    stack:AddItem(tonumber(entry_line))
+    stack:Addition()
+    entry_line = ""
 end
 
 keymap['-'] = function(stack)
-    if entry_line == "" then
-        stack:Subtract()
-    else
-        stack:Subtract(tonumber(entry_line))
-        entry_line = ""
-    end
+    stack:AddItem(tonumber(entry_line))
+    stack:Subtract()
+    entry_line = ""
 end
 
 keymap['*'] = function(stack)
-    if entry_line == "" then
-        stack:Multiply()
-    else
-        stack:Multiply(tonumber(entry_line))
-        entry_line = ""
-    end
+    stack:AddItem(tonumber(entry_line))
+    stack:Multiply()
+    entry_line = ""
 end
 
 keymap['/'] = function(stack)
-    if entry_line == "" then
-        stack:Divide()
-    else
-        stack:Divide(tonumber(entry_line))
-        entry_line = ""
-    end
+    stack:AddItem(tonumber(entry_line))
+    stack:Divide()
+    entry_line = ""
+end
+
+keymap['W'] = function(stack)
+    stack:AddItem(tonumber(entry_line))
+    stack:Reciprocal()
+    entry_line = ""
 end
 
 keymap['\n'] = function(stack)
+    if string.find(entry_line, "e$") then
+        entry_line = entry_line .. "0"
+    end
+
     if entry_line == "" then
         stack:Duplicate()
     else
@@ -190,12 +188,9 @@ keymap['\n'] = function(stack)
 end
 
 keymap['w'] = function(stack)
-    if entry_line == "" then
-        stack:Swap()
-    else
-        stack:Swap(tonumber(entry_line))
-        entry_line = ""
-    end
+    stack:AddItem(tonumber(entry_line))
+    stack:Swap()
+    entry_line = ""
 end
 
 keymap['n'] = function(stack)
@@ -204,7 +199,7 @@ keymap['n'] = function(stack)
     elseif string.find(entry_line, 'e%-') then
         stack.status="found e-"
         local exp, exp_end = string.find(entry_line, 'e%-')
-        entry_line = string.sub(entry_line, 1, exp) .. 'e' .. string.sub(entry_line, exp_end)
+        entry_line = string.sub(entry_line, 1, exp-1) .. 'e' .. string.sub(entry_line, exp_end+1)
     elseif string.find(entry_line, 'e') then
         stack.status="found e"
         local exp = string.find(entry_line, 'e')
