@@ -16,6 +16,7 @@ local window_x = math.min(window_x, 99)
 local mvaddstr = function (...) stdscr:mvaddstr(...) end
 
 local entry_line = ""
+local nav_pointer = 1
 local base = {Hex = 16, Dec = 10, Bin = 2}
 
 local Config = ConfigClass(os.getenv("HOME") .. "/.luarpn")
@@ -97,6 +98,7 @@ function StackClass:redraw()
 
     local active_width = window_x - 4 -- 4 comes from the stack_item size, plus the :
     local format = "%3s:%"..tostring(active_width).."s"
+    local nav_format = "%3s>%"..tostring(active_width).."s"
     for i=1, window_y - 2 do
         local stack_pointer = i + stack_starting_line
         local stack_item = window_y - 1 - i
@@ -106,7 +108,11 @@ function StackClass:redraw()
         else
             --Add item from the stack
             num_string = tostring(self.stack[stack_pointer])
-            mvaddstr(i, 0, string.format(format, '*'..tostring(stack_item), num_string))
+            if nav_pointer == stack_pointer then
+                mvaddstr(i, 0, string.format(nav_format, '*'..tostring(stack_item), num_string))
+            else
+                mvaddstr(i, 0, string.format(format, '*'..tostring(stack_item), num_string))
+            end
         end
     end
 end
@@ -457,6 +463,26 @@ keymap[CTRL_R] = function(stack)
     end
 end
 
+keymap[curses.KEY_UP] = function(stack)
+    if nav_pointer > 1 then
+        nav_pointer = nav_pointer-1
+    end
+    entry_line = tostring(stack.stack[nav_pointer])
+    if string.find(entry_line, '^#') then
+        entry_line = string.sub(entry_line, 1, -2)
+    end
+end
+
+keymap[curses.KEY_DOWN] = function(stack)
+    if nav_pointer < #stack.stack then
+        nav_pointer = nav_pointer+1
+    end
+    entry_line = tostring(stack.stack[nav_pointer])
+    if string.find(entry_line, '^#') then
+        entry_line = string.sub(entry_line, 1, -2)
+    end
+end
+
 -- Main application code
 ------------------------
 local stack = StackClass{stack = settings.stack}
@@ -472,6 +498,9 @@ function draw_entry_line()
 end
 
 while input_char ~= KEY_ESCAPE do -- not a curses reference
+    if input_char ~= curses.KEY_UP and input_char ~= curses.KEY_DOWN then
+        nav_pointer = #stack.stack + 1
+    end
     stack:redraw()
     draw_entry_line()
     local key = stdscr:getch()
@@ -488,3 +517,4 @@ end
 curses.endwin()
 settings.stack = stack.stack
 Config:Save(settings)
+print("Last Result: "..tostring(stack.stack[#stack.stack]))
