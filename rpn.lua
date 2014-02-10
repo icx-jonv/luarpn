@@ -1,4 +1,5 @@
 local curses = require 'curses'
+local ConfigClass = require "configuration"
 require "class"
 
 -- Initialize curses and get the initial window size
@@ -15,8 +16,16 @@ local window_x = math.min(window_x, 99)
 local mvaddstr = function (...) stdscr:mvaddstr(...) end
 
 local entry_line = ""
-local RadixMode = "Hex"
 local base = {Hex = 16, Dec = 10, Bin = 10}
+
+--local Config = ConfigClass("${HOME}/.luarpn")
+local Config = ConfigClass("/home/jon/.luarpn")
+local settings = Config:Load()
+if not settings then
+    settings = {}
+    settings.RadixMode = "Hex"
+    settings.stack = {}
+end
 
 local KEY_ESCAPE = 27
 local CTRL_R = 18
@@ -63,7 +72,15 @@ function StackClass:__init(args)
     self.stack = {}
     self.status = ""
     if args then
-        self.stack = args.stack or {}
+        if args.stack then
+            for k, v in ipairs(args.stack) do
+                if v.Type == "Dec" then
+                    table.insert(self.stack, Dec(v.value))
+                elseif v.Type == "Bin" then
+                    table.insert(self.stack, Bin(v.value))
+                end
+            end
+        end
         self.status = args.status or ""
     end
 end
@@ -256,12 +273,12 @@ keymap['6'] = function(stack) catNumber('6') end
 keymap['7'] = function(stack) catNumber('7') end
 keymap['8'] = function(stack) catNumber('8') end
 keymap['9'] = function(stack) catNumber('9') end
-keymap['a'] = function(stack) if RadixMode == "Hex" then keymap['#'](stack) catNumber('a') end end
-keymap['b'] = function(stack) if RadixMode == "Hex" then keymap['#'](stack) catNumber('b') end end
-keymap['c'] = function(stack) if RadixMode == "Hex" then keymap['#'](stack) catNumber('c') end end
-keymap['d'] = function(stack) if RadixMode == "Hex" then keymap['#'](stack) catNumber('d') end end
-keymap['e'] = function(stack) if RadixMode == "Hex" then keymap['#'](stack) catNumber('e') end end
-keymap['f'] = function(stack) if RadixMode == "Hex" then keymap['#'](stack) catNumber('f') end end
+keymap['a'] = function(stack) if settings.RadixMode == "Hex" then keymap['#'](stack) catNumber('a') end end
+keymap['b'] = function(stack) if settings.RadixMode == "Hex" then keymap['#'](stack) catNumber('b') end end
+keymap['c'] = function(stack) if settings.RadixMode == "Hex" then keymap['#'](stack) catNumber('c') end end
+keymap['d'] = function(stack) if settings.RadixMode == "Hex" then keymap['#'](stack) catNumber('d') end end
+keymap['e'] = function(stack) if settings.RadixMode == "Hex" then keymap['#'](stack) catNumber('e') end end
+keymap['f'] = function(stack) if settings.RadixMode == "Hex" then keymap['#'](stack) catNumber('f') end end
 keymap['A'] = keymap['a']
 keymap['B'] = keymap['b']
 keymap['C'] = keymap['c']
@@ -433,7 +450,7 @@ end
 
 -- Main application code
 ------------------------
-local stack = StackClass()
+local stack = StackClass{stack = settings.stack}
 
 function catNumber(number)
     if number then
@@ -460,3 +477,5 @@ while input_char ~= KEY_ESCAPE do -- not a curses reference
 end
 
 curses.endwin()
+settings.stack = stack.stack
+Config:Save(settings)
