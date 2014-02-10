@@ -16,10 +16,9 @@ local window_x = math.min(window_x, 99)
 local mvaddstr = function (...) stdscr:mvaddstr(...) end
 
 local entry_line = ""
-local base = {Hex = 16, Dec = 10, Bin = 10}
+local base = {Hex = 16, Dec = 10, Bin = 2}
 
---local Config = ConfigClass("${HOME}/.luarpn")
-local Config = ConfigClass("/home/jon/.luarpn")
+local Config = ConfigClass(os.getenv("HOME") .. "/.luarpn")
 local settings = Config:Load()
 if not settings then
     settings = {}
@@ -32,19 +31,20 @@ local CTRL_R = 18
 local CTRL_H = 8
 local CTRL_D = 4
 local CTRL_B = 2
+local BIN_CODES = {['0']=' 0000', ['1']=' 0001', ['2']=' 0010', ['3']=' 0011', ['4']=' 0100', ['5']=' 0101', ['6']=' 0110', ['7']=' 0111', ['8']=' 1000', ['9']=' 1001', ['a']=' 1010', ['b']=' 1011', ['c']=' 1100', ['d']=' 1101', ['e']=' 1110', ['f']=' 1111'}
 
 -- Item Definitions
 -------------------
-Dec = class()
-function Dec:__init(value)
+Real = class()
+function Real:__init(value)
     if type(value) == "string" then value = tonumber(value) end
     self.value = value or 0
-    self.Type = "Dec"
+    self.Type = "Real"
 end
-function Dec:__tostring()
+function Real:__tostring()
     return tostring(self.value)
 end
-function Dec:new(item) return Dec(item or self.value) end
+function Real:new(item) return Real(item or self.value) end
 
 Bin = class()
 function Bin:__init(value)
@@ -58,7 +58,12 @@ function Bin:__tostring()
     if settings.RadixMode == "Hex" then
         return string.format("# %xh", math.floor(self.value))
     elseif settings.RadixMode == "Bin" then
-        return string.format("# %bb", math.floor(self.value))
+        local string_num = ""
+        local num = string.format("%x", math.floor(self.value))
+        for i=1,#num do
+            string_num = string_num .. BIN_CODES[string.sub(num, i, i)]
+        end
+        return "#"..string_num.."b"
     elseif settings.RadixMode == "Dec" then
         return string.format("# %dd", math.floor(self.value))
     end
@@ -74,8 +79,8 @@ function StackClass:__init(args)
     if args then
         if args.stack then
             for k, v in ipairs(args.stack) do
-                if v.Type == "Dec" then
-                    table.insert(self.stack, Dec(v.value))
+                if v.Type == "Real" then
+                    table.insert(self.stack, Real(v.value))
                 elseif v.Type == "Bin" then
                     table.insert(self.stack, Bin(v.value))
                 end
@@ -118,7 +123,7 @@ function StackClass:AddItem(item)
     elseif string.find(item, "^# .") then
         table.insert(self.stack, Bin(item))
     else
-        table.insert(self.stack, Dec(item))
+        table.insert(self.stack, Real(item))
     end
 end
 
@@ -252,8 +257,8 @@ end
 function StackClass:ToggleRealBinary()
     if #self.stack > 0 then
         local a = table.remove(self.stack)
-        if string.find(tostring(a), "^#") then
-            table.insert(self.stack, Dec(a.value))
+        if a.Type == "Bin" then
+            table.insert(self.stack, Real(a.value))
         else
             table.insert(self.stack, Bin(a.value))
         end
@@ -440,6 +445,10 @@ end
 
 keymap[CTRL_H] = function(stack)
     settings.RadixMode = "Hex"
+end
+
+keymap[CTRL_B] = function(stack)
+    settings.RadixMode = "Bin"
 end
 
 keymap[CTRL_R] = function(stack)
