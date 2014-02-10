@@ -19,6 +19,10 @@ local RadixMode = "Hex"
 local base = {Hex = 16, Dec = 10, Bin = 10}
 
 local KEY_ESCAPE = 27
+local CTRL_R = 18
+local CTRL_H = 8
+local CTRL_D = 4
+local CTRL_B = 2
 
 -- Item Definitions
 -------------------
@@ -26,8 +30,8 @@ Dec = class()
 function Dec:__init(value)
     if type(value) == "string" then value = tonumber(value) end
     self.value = value or 0
+    self.Type = "Dec"
 end
-Dec.Description = "Decimal"
 function Dec:__tostring()
     return tostring(self.value)
 end
@@ -36,17 +40,17 @@ function Dec:new(item) return Dec(item or self.value) end
 Bin = class()
 function Bin:__init(value)
     if type(value) == "string" and string.find(entry_line, "^# ") then
-        value = tonumber(string.sub(entry_line, 3), base[RadixMode])
+        value = tonumber(string.sub(entry_line, 3), base[settings.RadixMode])
     end
     self.value = value or 0
+    self.Type = "Bin"
 end
-Bin.Description = "Bin"
 function Bin:__tostring()
-    if RadixMode == "Hex" then
+    if settings.RadixMode == "Hex" then
         return string.format("# %xh", math.floor(self.value))
-    elseif RadixMode == "Bin" then
+    elseif settings.RadixMode == "Bin" then
         return string.format("# %bb", math.floor(self.value))
-    elseif RadixMode == "Dec" then
+    elseif settings.RadixMode == "Dec" then
         return string.format("# %dd", math.floor(self.value))
     end
 end
@@ -228,6 +232,17 @@ function StackClass:Duplicate()
     end
 end
 
+function StackClass:ToggleRealBinary()
+    if #self.stack > 0 then
+        local a = table.remove(self.stack)
+        if string.find(tostring(a), "^#") then
+            table.insert(self.stack, Dec(a.value))
+        else
+            table.insert(self.stack, Bin(a.value))
+        end
+    end
+end
+
 -- keymaps
 ----------
 local keymap = {}
@@ -402,6 +417,20 @@ keymap['n'] = function(stack)
     end
 end
 
+keymap[CTRL_D] = function(stack)
+    settings.RadixMode = "Dec"
+end
+
+keymap[CTRL_H] = function(stack)
+    settings.RadixMode = "Hex"
+end
+
+keymap[CTRL_R] = function(stack)
+    if entry_line == "" then
+        stack:ToggleRealBinary()
+    end
+end
+
 -- Main application code
 ------------------------
 local stack = StackClass()
@@ -425,7 +454,9 @@ while input_char ~= KEY_ESCAPE do -- not a curses reference
     else
         input_char = key
     end
-    if keymap[input_char] then keymap[input_char](stack) end
+    if keymap[input_char] then keymap[input_char](stack)
+    --else stack:AddItem(tostring(input_char))
+    end
 end
 
 curses.endwin()
