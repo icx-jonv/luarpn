@@ -32,6 +32,9 @@ curses.initscr()
 curses.cbreak()
 curses.echo(false)  -- not noecho !
 curses.nl(0)    -- not nonl !
+curses.start_color()
+curses.use_default_colors()
+
 local stdscr = curses.stdscr()  -- it's a userdatum
 stdscr:keypad(1)
 stdscr:clear()
@@ -57,6 +60,7 @@ local CTRL_R = 18
 local CTRL_H = 8
 local CTRL_D = 4
 local CTRL_B = 2
+local CTRL_Q = 17
 local BIN_CODES = {['0']=' 0000', ['1']=' 0001', ['2']=' 0010', ['3']=' 0011', ['4']=' 0100', ['5']=' 0101', ['6']=' 0110', ['7']=' 0111', ['8']=' 1000', ['9']=' 1001', ['a']=' 1010', ['b']=' 1011', ['c']=' 1100', ['d']=' 1101', ['e']=' 1110', ['f']=' 1111'}
 
 -- Item Definitions
@@ -119,11 +123,9 @@ end
 function StackClass:redraw(starting_line)
     local stack_length = #self.stack
     local stack_starting_line = stack_length - (window_y - 2)
-    mvaddstr(0, 0, string.format("%"..window_x.."s", self.status))
 
     local active_width = window_x - 4 -- 4 comes from the stack_item size, plus the :
     local format = "%3s:%"..tostring(active_width).."s"
-    local nav_format = "%3s>%"..tostring(active_width).."s"
     for i=starting_line, window_y - 2 do
         local stack_pointer = i + stack_starting_line
         local stack_item = window_y - 1 - i
@@ -134,7 +136,9 @@ function StackClass:redraw(starting_line)
             --Add item from the stack
             num_string = tostring(self.stack[stack_pointer])
             if nav_pointer == stack_pointer then
-                mvaddstr(i, 0, string.format(nav_format, '*'..tostring(stack_item), num_string))
+                stdscr:attron(curses.A_REVERSE)
+                mvaddstr(i, 0, string.format(format, '*'..tostring(stack_item), num_string))
+                stdscr:attroff(curses.A_REVERSE)
             else
                 mvaddstr(i, 0, string.format(format, '*'..tostring(stack_item), num_string))
             end
@@ -528,10 +532,13 @@ end
 keymap[curses.KEY_DOWN] = function(stack)
     if nav_pointer < #stack.stack then
         nav_pointer = nav_pointer+1
-    end
-    entry_line = tostring(stack.stack[nav_pointer])
-    if string.find(entry_line, '^#') then
-        entry_line = string.sub(entry_line, 1, -2)
+        entry_line = tostring(stack.stack[nav_pointer])
+        if string.find(entry_line, '^#') then
+            entry_line = string.sub(entry_line, 1, -2)
+        end
+    else
+        entry_line = ""
+        nav_pointer = #stack.stack + 1
     end
 end
 
@@ -598,11 +605,22 @@ function draw_help(page)
     return help_lines + 1
 end
 
-while input_char ~= KEY_ESCAPE do -- not a curses reference
+function draw_status_line()
+    if stack.status == "" then
+        mvaddstr(0, 0, string.format("%"..window_x.."s", stack.status))
+    else
+        stdscr:attron(curses.A_REVERSE)
+        mvaddstr(0, 0, string.format("%"..window_x.."s", stack.status))
+        stdscr:attroff(curses.A_REVERSE)
+    end
+end
+
+while input_char ~= curses.KEY_F10 do -- not a curses reference
     if input_char ~= curses.KEY_UP and input_char ~= curses.KEY_DOWN then
         nav_pointer = #stack.stack + 1
     end
     stack_start_line = draw_help(help_page)
+    draw_status_line()
     stack:redraw(stack_start_line)
     draw_entry_line()
     local key = stdscr:getch()
