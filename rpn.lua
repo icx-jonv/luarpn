@@ -574,7 +574,7 @@ for k,v in ipairs(helpstrings) do
     if #v.txt > help_max_length then help_max_length = #v.txt end
 end
 
-function draw_help(page)
+function draw_help()
     -- figure out how many columns we can have (up to 3)
     local help_columns = math.min(3, math.floor(window_x / (help_max_length + 2)))
     -- figure out how many lines we will have
@@ -586,12 +586,12 @@ function draw_help(page)
     local itemspp = help_columns * help_lines
     -- figure out how many pages we have
     local pages = math.ceil(help_max_lines / itemspp)
-    page = math.fmod(page, pages + 1)
-    if page == 0 then return 1 end
+    help_page = math.fmod(help_page, pages + 1)
+    if help_page == 0 then return 1 end
     --figure out the start and end of the help array for this page
-    local start_item = (page - 1) * itemspp + 1
-    local last_item = math.min(page * itemspp, help_max_lines)
-    if page == pages then
+    local start_item = (help_page - 1) * itemspp + 1
+    local last_item = math.min(help_page * itemspp, help_max_lines)
+    if help_page == pages then
         local lines_left = last_item - start_item + 1
         help_lines = math.ceil(lines_left/help_columns)
     end
@@ -603,16 +603,18 @@ function draw_help(page)
         local line_width = window_x - x
         mvaddstr(y, x, string.format("%-"..line_width.."s", helpstrings[i].txt))
     end
-    return help_lines + 1
+    stdscr:mvhline(help_lines+1, 0, curses.ACS_HLINE, window_x)
+    stdscr:refresh()
+    return help_lines + 2
 end
 
 function draw_status_line()
     if stack.status == "" then
         mvaddstr(0, 0, string.format("%"..window_x.."s", stack.status))
     else
-        stdscr:attron(curses.A_REVERSE)
+        stdscr:attron(curses.A_STANDOUT)
         mvaddstr(0, 0, string.format("%"..window_x.."s", stack.status))
-        stdscr:attroff(curses.A_REVERSE)
+        stdscr:attroff(curses.A_STANDOUT)
     end
 end
 
@@ -620,7 +622,7 @@ while input_char ~= 'Q' do -- not a curses reference
     if input_char ~= curses.KEY_UP and input_char ~= curses.KEY_DOWN then
         nav_pointer = #stack.stack + 1
     end
-    stack_start_line = draw_help(help_page)
+    stack_start_line = draw_help()
     draw_status_line()
     stack:redraw(stack_start_line)
     draw_entry_line()
