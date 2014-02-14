@@ -1,3 +1,5 @@
+#!/usr/bin/lua
+--package.path =  package.path .. ";" .. installdir .. "/?.lua"
 local curses = require 'curses'
 local ConfigClass = require "configuration"
 require "class"
@@ -135,6 +137,10 @@ end
 
 function StackClass:DropItem()
     table.remove(self.stack)
+end
+
+function StackClass:DropStack()
+    self.stack = {}
 end
 
 function StackClass:Addition()
@@ -328,6 +334,10 @@ keymap[curses.KEY_BACKSPACE] = function(stack)
         entry_line = string.sub(entry_line, 1, -2)
     end
 end
+
+--keymap[curses.KEY_DELETE] = function(stack)
+    --stack:DropStack()
+--end
 
 keymap['+'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
