@@ -168,7 +168,13 @@ function StackClass:Divide()
     if #self.stack < 2 then return end
     local divisor = table.remove(self.stack)
     local numerator = table.remove(self.stack)
-    table.insert(self.stack, numerator:new(numerator.value/divisor.value))
+    if divisor.value ~=0 then
+        table.insert(self.stack, numerator:new(numerator.value/divisor.value))
+    else
+        stack.status = "Divide by zero error"
+        table.insert(self.stack, numerator)
+        table.insert(self.stack, divisor)
+    end
 end
 
 function StackClass:Power()
@@ -181,7 +187,12 @@ end
 function StackClass:Sqrt()
     if #self.stack < 1 then return end
     local x = table.remove(self.stack)
-    table.insert(self.stack, x:new(math.sqrt(x.value)))
+    if x.value > 0 then
+        table.insert(self.stack, x:new(math.sqrt(x.value)))
+    else
+        self.status = "Invalid operand"
+        table.insert(self.stack, x)
+    end
 end
 
 function StackClass:Square()
@@ -193,7 +204,12 @@ end
 function StackClass:NatLog()
     if #self.stack < 1 then return end
     local x = table.remove(self.stack)
-    table.insert(self.stack, x:new(math.log(x.value)))
+    if x.value < 0 then
+        self.status = "Invalid operand"
+        table.insert(self.stack, x)
+    else
+        table.insert(self.stack, x:new(math.log(x.value)))
+    end
 end
 
 function StackClass:Exp()
@@ -410,6 +426,7 @@ keymap['M'] = function(stack)
     stack:Factorial()
     entry_line = ""
 end
+keymap['!'] = keymap['M']
 
 keymap['Q'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
@@ -519,6 +536,7 @@ while input_char ~= KEY_ESCAPE do -- not a curses reference
     else
         input_char = key
     end
+    stack.status = ""
     if keymap[input_char] then keymap[input_char](stack)
     --else stack:AddItem(tostring(input_char))
     end
@@ -527,4 +545,6 @@ end
 curses.endwin()
 settings.stack = stack.stack
 Config:Save(settings)
-print("Last Result: "..tostring(stack.stack[#stack.stack]))
+if #stack.stack > 0 then
+    print("Last Result: "..tostring(stack.stack[#stack.stack]))
+end
