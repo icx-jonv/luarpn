@@ -5,6 +5,7 @@ local ConfigClass = require "configuration"
 require "class"
 
 local helpstrings = {
+    {txt = "Q - Quit"},
     {txt = "BACKSPACE - Drop"},
     {txt = "^R - Real/Bin Tgl"},
     {txt = "^B - Binary"},
@@ -15,8 +16,8 @@ local helpstrings = {
     {txt = "n - negate"},
     {txt = "x - EEX"},
     {txt = "y - y^x"},
+    {txt = "Y - x^2"},
     {txt = "q - sqrt"},
-    {txt = "Q - x^2"},
     {txt = "l - ln"},
     {txt = "L - e^x"},
     {txt = "g - Log"},
@@ -457,7 +458,7 @@ keymap['M'] = function(stack)
 end
 keymap['!'] = keymap['M']
 
-keymap['Q'] = function(stack)
+keymap['Y'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Square()
     entry_line = ""
@@ -615,7 +616,7 @@ function draw_status_line()
     end
 end
 
-while input_char ~= curses.KEY_F10 do -- not a curses reference
+while input_char ~= 'Q' do -- not a curses reference
     if input_char ~= curses.KEY_UP and input_char ~= curses.KEY_DOWN then
         nav_pointer = #stack.stack + 1
     end

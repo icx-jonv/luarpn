@@ -1,0 +1,3 @@
+#!/usr/bin/lua
+package.path=package.path..";/home/jon/Projects/luarpn/?.lua;"
+require "rpn"
