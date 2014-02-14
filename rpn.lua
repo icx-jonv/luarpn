@@ -4,6 +4,28 @@ local curses = require 'curses'
 local ConfigClass = require "configuration"
 require "class"
 
+local helpstrings = {
+    {txt = "BACKSPACE - Drop"},
+    {txt = "^R - Real/Bin Tgl"},
+    {txt = "^B - Binary"},
+    {txt = "^D - Decimal"},
+    {txt = "^H - Hexadecimal"},
+    {txt = "w - swap"},
+    {txt = "Up/Dn - copy item"},
+    {txt = "n - negate"},
+    {txt = "x - EEX"},
+    {txt = "y - y^x"},
+    {txt = "q - sqrt"},
+    {txt = "Q - x^2"},
+    {txt = "l - ln"},
+    {txt = "L - e^x"},
+    {txt = "g - Log"},
+    {txt = "G - 10^x"},
+    {txt = "m - Modulo"},
+    {txt = "M - !"},
+    {txt = "W - 1/x"},
+}
+
 -- Initialize curses and get the initial window size
 ----------------------------------------------------
 curses.initscr()
@@ -20,6 +42,7 @@ local mvaddstr = function (...) stdscr:mvaddstr(...) end
 local entry_line = ""
 local nav_pointer = 1
 local base = {Hex = 16, Dec = 10, Bin = 2}
+local help_page = 0
 
 local Config = ConfigClass(os.getenv("HOME") .. "/.luarpn")
 local settings = Config:Load()
@@ -93,7 +116,7 @@ function StackClass:__init(args)
     end
 end
 
-function StackClass:redraw()
+function StackClass:redraw(starting_line)
     local stack_length = #self.stack
     local stack_starting_line = stack_length - (window_y - 2)
     mvaddstr(0, 0, string.format("%"..window_x.."s", self.status))
@@ -101,7 +124,7 @@ function StackClass:redraw()
     local active_width = window_x - 4 -- 4 comes from the stack_item size, plus the :
     local format = "%3s:%"..tostring(active_width).."s"
     local nav_format = "%3s>%"..tostring(active_width).."s"
-    for i=1, window_y - 2 do
+    for i=starting_line, window_y - 2 do
         local stack_pointer = i + stack_starting_line
         local stack_item = window_y - 1 - i
         if stack_pointer < 1 then
@@ -510,9 +533,14 @@ keymap[curses.KEY_DOWN] = function(stack)
     end
 end
 
+keymap['?'] = function(stack)
+    help_page = help_page + 1
+end
+
 -- Main application code
 ------------------------
 local stack = StackClass{stack = settings.stack}
+local stack_start_line = 1
 
 function catNumber(number)
     if number then
@@ -524,11 +552,50 @@ function draw_entry_line()
     mvaddstr(window_y-1, 0, string.format("%"..tostring(window_x-1).."s",entry_line))
 end
 
+-- Find the longest help string
+local help_max_length = 0
+local help_max_lines = #helpstrings
+for k,v in ipairs(helpstrings) do
+    if #v.txt > help_max_length then help_max_length = #v.txt end
+end
+
+function draw_help(page)
+    -- figure out how many columns we can have (up to 3)
+    local help_columns = math.min(3, math.floor(window_x / (help_max_length + 2)))
+    -- figure out how many lines we will have
+    local help_lines = math.max(1, math.floor(window_y / 4))
+    local help_lines = math.min(help_lines, math.ceil(help_max_lines/help_columns))
+    -- figure out the column spacing
+    local spacing = math.floor(window_x / help_columns)
+    -- figure out how many items per page
+    local itemspp = help_columns * help_lines
+    -- figure out how many pages we have
+    local pages = math.ceil(help_max_lines / itemspp)
+    page = math.fmod(page, pages + 1)
+    if page == 0 then return 1 end
+    --figure out the start and end of the help array for this page
+    local start_item = (page - 1) * itemspp + 1
+    local last_item = math.min(page * itemspp, help_max_lines)
+    if page == pages then
+        local lines_left = last_item - start_item + 1
+        help_lines = math.ceil(lines_left/help_columns)
+    end
+
+    for i = start_item, last_item do
+        local x, y = math.modf((i-start_item)/help_lines)
+        y = y * help_lines + 1
+        x = x * spacing
+        mvaddstr(y, x, string.format("%-"..spacing.."s", helpstrings[i].txt))
+    end
+    return help_lines + 1
+end
+
 while input_char ~= KEY_ESCAPE do -- not a curses reference
     if input_char ~= curses.KEY_UP and input_char ~= curses.KEY_DOWN then
         nav_pointer = #stack.stack + 1
     end
-    stack:redraw()
+    stack_start_line = draw_help(help_page)
+    stack:redraw(stack_start_line)
     draw_entry_line()
     local key = stdscr:getch()
     if key < 256 and key > 31 then
