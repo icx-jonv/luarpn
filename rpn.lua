@@ -537,6 +537,11 @@ keymap['?'] = function(stack)
     help_page = help_page + 1
 end
 
+keymap[curses.KEY_RESIZE] = function(stack)
+    stdscr:clear()
+    window_y, window_x = stdscr:getmaxyx()
+end
+
 -- Main application code
 ------------------------
 local stack = StackClass{stack = settings.stack}
@@ -585,7 +590,8 @@ function draw_help(page)
         local x, y = math.modf((i-start_item)/help_lines)
         y = y * help_lines + 1
         x = x * spacing
-        mvaddstr(y, x, string.format("%-"..spacing.."s", helpstrings[i].txt))
+        local line_width = window_x - x
+        mvaddstr(y, x, string.format("%-"..line_width.."s", helpstrings[i].txt))
     end
     return help_lines + 1
 end
