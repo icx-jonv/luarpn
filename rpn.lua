@@ -194,7 +194,7 @@ function StackClass:Divide()
     if divisor.value ~=0 then
         table.insert(self.stack, numerator:new(numerator.value/divisor.value))
     else
-        stack.status = "Divide by zero error"
+        self.status = "Divide by zero error"
         table.insert(self.stack, numerator)
         table.insert(self.stack, divisor)
     end
@@ -373,6 +373,8 @@ keymap[curses.KEY_BACKSPACE] = function(stack)
         entry_line = string.sub(entry_line, 1, -2)
     end
 end
+-- some terminals issue a 127 for the backspace key ??
+keymap[127] = keymap[curses.KEY_BACKSPACE]
 
 --keymap[curses.KEY_DELETE] = function(stack)
     --stack:DropStack()
@@ -604,14 +606,16 @@ while input_char ~= KEY_ESCAPE do -- not a curses reference
     stack:redraw(stack_start_line)
     draw_entry_line()
     local key = stdscr:getch()
-    if key < 256 and key > 31 then
-        input_char = string.char(key)
-    else
-        input_char = key
-    end
-    stack.status = ""
-    if keymap[input_char] then keymap[input_char](stack)
-    --else stack:AddItem(tostring(input_char))
+    if key then
+        if key < 127 and key > 31 then
+            input_char = string.char(key)
+        else
+            input_char = key
+        end
+        stack.status = ""
+        if keymap[input_char] then keymap[input_char](stack)
+        --else stack:AddItem(tostring(input_char))
+        end
     end
 end
 
