@@ -7,6 +7,7 @@ require "class"
 local helpstrings = {
     {txt = "Q - Quit"},
     {txt = "BACKSPACE - Drop"},
+    {txt = "^P - purge stack"},
     {txt = "^R - Real/Bin Tgl"},
     {txt = "^B - Binary"},
     {txt = "^D - Decimal"},
@@ -62,7 +63,7 @@ local CTRL_R = 18
 local CTRL_H = 8
 local CTRL_D = 4
 local CTRL_B = 2
-local CTRL_Q = 17
+local CTRL_P = 16
 local BIN_CODES = {['0']=' 0000', ['1']=' 0001', ['2']=' 0010', ['3']=' 0011', ['4']=' 0100', ['5']=' 0101', ['6']=' 0110', ['7']=' 0111', ['8']=' 1000', ['9']=' 1001', ['a']=' 1010', ['b']=' 1011', ['c']=' 1100', ['d']=' 1101', ['e']=' 1110', ['f']=' 1111'}
 
 -- Item Definitions
@@ -427,9 +428,9 @@ end
 -- some terminals issue a 127 for the backspace key ??
 keymap[127] = keymap[curses.KEY_BACKSPACE]
 
---keymap[curses.KEY_DELETE] = function(stack)
-    --stack:DropStack()
---end
+keymap[CTRL_P] = function(stack)
+    stack:DropStack()
+end
 
 keymap['+'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
