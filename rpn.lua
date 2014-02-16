@@ -25,6 +25,7 @@ local helpstrings = {
     {txt = "m - Modulo"},
     {txt = "M - !"},
     {txt = "W - 1/x"},
+    {txt = "\" - Add label"},
 }
 
 -- Initialize curses and get the initial window size
@@ -68,38 +69,75 @@ local BIN_CODES = {['0']=' 0000', ['1']=' 0001', ['2']=' 0010', ['3']=' 0011', [
 -------------------
 Real = class()
 function Real:__init(value)
-    if type(value) == "string" then value = tonumber(value) end
-    self.value = value or 0
+    if type(value) == "string" then
+        value = tonumber(value)
+        self.value = value or 0
+    elseif type(value) == "table" then
+        for k, v in pairs(value) do
+            self[k] = v
+        end
+    else
+        self.value = value or 0
+    end
     self.Type = "Real"
 end
 function Real:__tostring()
+    if self.label == "" then
+        return tostring(self.value)
+    else
+        return self.label .. ": " .. tostring(self.value)
+    end
+end
+function Real:GetNumber()
     return tostring(self.value)
 end
 function Real:new(item) return Real(item or self.value) end
+Real.label = ""
 
 Bin = class()
 function Bin:__init(value)
     if type(value) == "string" and string.find(entry_line, "^# ") then
         value = tonumber(string.sub(entry_line, 3), base[settings.RadixMode])
+        self.value = value or 0
+    elseif type(value) == "table" then
+        for k, v in pairs(value) do
+            self[k] = v
+        end
+    else
+        self.value = value or 0
     end
-    self.value = value or 0
     self.Type = "Bin"
 end
 function Bin:__tostring()
+    local label = ""
+    if self.label ~= "" then
+        label = self.label .. ": "
+    end
+    local formattedNumber = self:GetNumber()
     if settings.RadixMode == "Hex" then
-        return string.format("# %xh", math.floor(self.value))
+        return string.format("%s%sh", label, formattedNumber)
+    elseif settings.RadixMode == "Bin" then
+        return string.format("%s%sb", label, formattedNumber)
+    elseif settings.RadixMode == "Dec" then
+        return string.format("%s%sd", label, formattedNumber)
+    end
+end
+function Bin:GetNumber()
+    if settings.RadixMode == "Hex" then
+        return string.format("# %x", math.floor(self.value))
     elseif settings.RadixMode == "Bin" then
         local string_num = ""
         local num = string.format("%x", math.floor(self.value))
         for i=1,#num do
             string_num = string_num .. BIN_CODES[string.sub(num, i, i)]
         end
-        return "#"..string_num.."b"
+        return string.format("#%s", string_num)
     elseif settings.RadixMode == "Dec" then
-        return string.format("# %dd", math.floor(self.value))
+        return string.format("# %d", math.floor(self.value))
     end
 end
 function Bin:new(item) return Bin(item or self.value) end
+Bin.label = ""
 
 -- Stack Class definition
 -------------------------
@@ -111,9 +149,9 @@ function StackClass:__init(args)
         if args.stack then
             for k, v in ipairs(args.stack) do
                 if v.Type == "Real" then
-                    table.insert(self.stack, Real(v.value))
+                    table.insert(self.stack, Real(v))
                 elseif v.Type == "Bin" then
-                    table.insert(self.stack, Bin(v.value))
+                    table.insert(self.stack, Bin(v))
                 end
             end
         end
@@ -175,21 +213,21 @@ function StackClass:Addition()
     if #self.stack < 2 then return end
     local a = table.remove(self.stack)
     local b = table.remove(self.stack)
-    table.insert(self.stack, b:new(a.value + b.value))
+    table.insert(self.stack, b:new{value=a.value + b.value, label = b.label})
 end
 
 function StackClass:Subtract()
     if #self.stack < 2 then return end
     local a = table.remove(self.stack)
     local b = table.remove(self.stack)
-    table.insert(self.stack, b:new(b.value - a.value))
+    table.insert(self.stack, b:new{value=b.value - a.value, label = b.label})
 end
 
 function StackClass:Multiply()
     if #self.stack < 2 then return end
     local a = table.remove(self.stack)
     local b = table.remove(self.stack)
-    table.insert(self.stack, b:new(a.value * b.value))
+    table.insert(self.stack, b:new{value=a.value * b.value, label = b.label})
 end
 
 function StackClass:Divide()
@@ -197,7 +235,7 @@ function StackClass:Divide()
     local divisor = table.remove(self.stack)
     local numerator = table.remove(self.stack)
     if divisor.value ~=0 then
-        table.insert(self.stack, numerator:new(numerator.value/divisor.value))
+        table.insert(self.stack, numerator:new{value=numerator.value/divisor.value, label = numerator.label})
     else
         self.status = "Divide by zero error"
         table.insert(self.stack, numerator)
@@ -209,14 +247,14 @@ function StackClass:Power()
     if #self.stack < 2 then return end
     local x = table.remove(self.stack)
     local y = table.remove(self.stack)
-    table.insert(self.stack, y:new(y.value^x.value))
+    table.insert(self.stack, y:new{value=y.value^x.value, label = y.label})
 end
 
 function StackClass:Sqrt()
     if #self.stack < 1 then return end
     local x = table.remove(self.stack)
     if x.value > 0 then
-        table.insert(self.stack, x:new(math.sqrt(x.value)))
+        table.insert(self.stack, x:new{value=math.sqrt(x.value), label = x.label})
     else
         self.status = "Invalid operand"
         table.insert(self.stack, x)
@@ -226,7 +264,7 @@ end
 function StackClass:Square()
     if #self.stack < 1 then return end
     local x = table.remove(self.stack)
-    table.insert(self.stack, x:new(x.value^2))
+    table.insert(self.stack, x:new{value=x.value^2, label = x.label})
 end
 
 function StackClass:NatLog()
@@ -236,33 +274,33 @@ function StackClass:NatLog()
         self.status = "Invalid operand"
         table.insert(self.stack, x)
     else
-        table.insert(self.stack, x:new(math.log(x.value)))
+        table.insert(self.stack, x:new{value=math.log(x.value), label = x.label})
     end
 end
 
 function StackClass:Exp()
     if #self.stack < 1 then return end
     local x = table.remove(self.stack)
-    table.insert(self.stack, x:new(math.exp(x.value)))
+    table.insert(self.stack, x:new{value=math.exp(x.value), label = x.label})
 end
 
 function StackClass:Log10()
     if #self.stack < 1 then return end
     local x = table.remove(self.stack)
-    table.insert(self.stack, x:new(math.log10(x.value)))
+    table.insert(self.stack, x:new{value=math.log10(x.value), label = x.label})
 end
 
 function StackClass:Pow10()
     if #self.stack < 1 then return end
     local x = table.remove(self.stack)
-    table.insert(self.stack, x:new(10^x.value))
+    table.insert(self.stack, x:new{value=10^x.value, label = x.label})
 end
 
 function StackClass:Mod()
     if #self.stack < 2 then return end
     local x = table.remove(self.stack)
     local y = table.remove(self.stack)
-    table.insert(self.stack, x:new(math.fmod(y.value, x.value)))
+    table.insert(self.stack, x:new{value=math.fmod(y.value, x.value), label = x.label})
 end
 
 function StackClass:Factorial()
@@ -278,20 +316,20 @@ function StackClass:Factorial()
         self.status = "Bad argument type"
         return false
     end
-    table.insert(self.stack, x:new(real))
+    table.insert(self.stack, x:new{value=real, label = x.label})
     return true
 end
 
 function StackClass:Reciprocal()
     if #self.stack < 1 then return end
     local a = table.remove(self.stack)
-    table.insert(self.stack, a:new(1/a.value))
+    table.insert(self.stack, a:new{value=1/a.value, label = a.label})
 end
 
 function StackClass:Negate()
     if #self.stack < 1 then return end
     local a = table.remove(self.stack)
-    table.insert(self.stack, a:new(-a.value))
+    table.insert(self.stack, a:new{value=-a.value, label = a.label})
 end
 
 function StackClass:Swap()
@@ -314,10 +352,18 @@ function StackClass:ToggleRealBinary()
     if #self.stack > 0 then
         local a = table.remove(self.stack)
         if a.Type == "Bin" then
-            table.insert(self.stack, Real(a.value))
+            table.insert(self.stack, Real{value=a.value, label = a.label})
         else
-            table.insert(self.stack, Bin(a.value))
+            table.insert(self.stack, Bin{value=a.value, label = a.label})
         end
+    end
+end
+
+function StackClass:AddLabel(label)
+    if #self.stack > 0 then
+        local a = table.remove(self.stack)
+        a.label = label
+        table.insert(self.stack, a)
     end
 end
 
@@ -524,19 +570,13 @@ keymap[curses.KEY_UP] = function(stack)
     if nav_pointer > 1 then
         nav_pointer = nav_pointer-1
     end
-    entry_line = tostring(stack.stack[nav_pointer])
-    if string.find(entry_line, '^#') then
-        entry_line = string.sub(entry_line, 1, -2)
-    end
+    entry_line = stack.stack[nav_pointer]:GetNumber()
 end
 
 keymap[curses.KEY_DOWN] = function(stack)
     if nav_pointer < #stack.stack then
         nav_pointer = nav_pointer+1
-        entry_line = tostring(stack.stack[nav_pointer])
-        if string.find(entry_line, '^#') then
-            entry_line = string.sub(entry_line, 1, -2)
-        end
+        entry_line = stack.stack[nav_pointer]:GetNumber()
     else
         entry_line = ""
         nav_pointer = #stack.stack + 1
@@ -552,9 +592,15 @@ keymap[curses.KEY_RESIZE] = function(stack)
     window_y, window_x = stdscr:getmaxyx()
 end
 
+keymap['"'] = function(stack)
+    if entry_line == "" then
+        entry_line = '"'
+    end
+end
+
 -- Main application code
 ------------------------
-local stack = StackClass{stack = settings.stack}
+local stack = StackClass{stack = settings.stack, status = "? for keymap help"}
 local stack_start_line = 1
 
 function catNumber(number)
@@ -634,7 +680,16 @@ while input_char ~= 'Q' do -- not a curses reference
             input_char = key
         end
         stack.status = ""
-        if keymap[input_char] then keymap[input_char](stack)
+        if string.sub(entry_line, 1, 1) == '"' then
+            if key < 127 and key > 31 then
+                entry_line = entry_line .. input_char
+            elseif key == 0xd or key == 0xa then
+                stack:AddLabel(string.sub(entry_line, 2))
+                entry_line = ""
+            elseif key == curses.KEY_BACKSPACE or key == 127 then
+                entry_line = string.sub(entry_line, 1, -2)
+            end
+        elseif keymap[input_char] then keymap[input_char](stack)
         --else stack:AddItem(tostring(input_char))
         end
     end
