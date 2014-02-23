@@ -7,6 +7,7 @@ require "class"
 local helpstrings = {
     {txt = "Q - Quit"},
     {txt = "BACKSPACE - Drop"},
+    {txt = "~ - show stats"},
     {txt = "^P - purge stack"},
     {txt = "^R - Real/Bin Tgl"},
     {txt = "^B - Binary"},
@@ -49,6 +50,7 @@ local entry_line = ""
 local nav_pointer = 1
 local base = {Hex = 16, Dec = 10, Bin = 2}
 local help_page = 0
+local statistic_page = 0
 
 local Config = ConfigClass(os.getenv("HOME") .. "/.luarpn")
 local settings = Config:Load()
@@ -588,6 +590,10 @@ keymap['?'] = function(stack)
     help_page = help_page + 1
 end
 
+keymap['~'] = function(stack)
+    statistic_page = statistic_page + 1
+end
+
 keymap[curses.KEY_RESIZE] = function(stack)
     stdscr:clear()
     window_y, window_x = stdscr:getmaxyx()
@@ -689,7 +695,12 @@ while input_char ~= 'Q' do -- not a curses reference
     if input_char ~= curses.KEY_UP and input_char ~= curses.KEY_DOWN then
         nav_pointer = #stack.stack + 1
     end
-    stack_start_line, help_page = draw_info_window(helpstrings, help_page)
+    stack_start_line = 1
+    if help_page ~=0 then
+        stack_start_line, help_page = draw_info_window(helpstrings, help_page)
+    elseif statistic_page ~=0 then
+        stack_start_line = draw_statistics_window()
+    end
     draw_status_line()
     stack:redraw(stack_start_line)
     draw_entry_line()
