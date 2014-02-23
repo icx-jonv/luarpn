@@ -614,45 +614,65 @@ function draw_entry_line()
     mvaddstr(window_y-1, 0, string.format("%"..tostring(window_x-1).."s",entry_line))
 end
 
--- Find the longest help string
-local help_max_length = 0
-local help_max_lines = #helpstrings
-for k,v in ipairs(helpstrings) do
-    if #v.txt > help_max_length then help_max_length = #v.txt end
-end
-
-function draw_help()
-    -- figure out how many columns we can have (up to 3)
-    local help_columns = math.min(3, math.floor(window_x / (help_max_length + 2)))
-    -- figure out how many lines we will have
-    local help_lines = math.max(1, math.floor(window_y / 4))
-    local help_lines = math.min(help_lines, math.ceil(help_max_lines/help_columns))
-    -- figure out the column spacing
-    local spacing = math.floor(window_x / help_columns)
-    -- figure out how many items per page
-    local itemspp = help_columns * help_lines
-    -- figure out how many pages we have
-    local pages = math.ceil(help_max_lines / itemspp)
-    help_page = math.fmod(help_page, pages + 1)
-    if help_page == 0 then return 1 end
-    --figure out the start and end of the help array for this page
-    local start_item = (help_page - 1) * itemspp + 1
-    local last_item = math.min(help_page * itemspp, help_max_lines)
-    if help_page == pages then
-        local lines_left = last_item - start_item + 1
-        help_lines = math.ceil(lines_left/help_columns)
+function draw_info_window(strings, page)
+    local max_length = 0
+    local max_lines = #strings
+    for k,v in ipairs(strings) do
+        if #v.txt > max_length then max_length = #v.txt end
     end
-
+    -- figure out how many columns we can have (up to 3)
+    local columns = math.min(3, math.floor(window_x / (max_length + 2)))
+    -- figure out how many lines we will have
+    local lines = math.max(1, math.floor(window_y / 4))
+    local lines = math.min(lines, math.ceil(max_lines/columns))
+    -- figure out the column spacing
+    local spacing = math.floor(window_x / columns)
+    -- figure out how many items per page
+    local itemspp = columns * lines
+    -- figure out how many pages we have
+    local pages = math.ceil(max_lines / itemspp)
+    page = math.fmod(page, pages + 1)
+    if page == 0 then return 1, 0 end
+    --figure out the start and end of the help array for this page
+    local start_item = (page - 1) * itemspp + 1
+    local last_item = math.min(page * itemspp, max_lines)
+    if page == pages then
+        local lines_left = last_item - start_item + 1
+        lines = math.ceil(lines_left/columns)
+    end
     for i = start_item, last_item do
-        local x, y = math.modf((i-start_item)/help_lines)
-        y = y * help_lines + 1
+        local x, y = math.modf((i-start_item)/lines)
+        y = y * lines + 1
         x = x * spacing
         local line_width = window_x - x
-        mvaddstr(y, x, string.format("%-"..line_width.."s", helpstrings[i].txt))
+        mvaddstr(y, x, string.format("%-"..line_width.."s", strings[i].txt))
     end
-    stdscr:mvhline(help_lines+1, 0, curses.ACS_HLINE, window_x)
+    stdscr:mvhline(lines+1, 0, curses.ACS_HLINE, window_x)
     stdscr:refresh()
-    return help_lines + 2
+    return lines + 2, page
+end
+
+function draw_statistics_window()
+    local sum, count, stack_copy, stats = 0, 0, {}, {}
+
+    for k, v in ipairs(stack.stack) do
+        sum = sum + v.value
+        count = count + 1
+        stack_copy[k] = v
+    end
+    table.insert(stats, {txt = "Count: " .. count})
+    if count > 0 then
+        table.insert(stats, {txt = "Sum: " .. sum})
+        table.insert(stats, {txt = "Mean: " .. sum/count})
+        if count > 1 then
+            table.sort(stack_copy, function (a, b) return a.value < b.value end)
+            local a = stack_copy[math.floor(count/2+0.5)].value
+            local b = stack_copy[math.ceil(count/2+0.5)].value
+            table.insert(stats, {txt = "Median: " .. (a+b)/2})
+        end
+    end
+    stack_start_line, statistic_page = draw_info_window(stats, statistic_page)
+    return stack_start_line, statistic_page
 end
 
 function draw_status_line()
@@ -669,7 +689,7 @@ while input_char ~= 'Q' do -- not a curses reference
     if input_char ~= curses.KEY_UP and input_char ~= curses.KEY_DOWN then
         nav_pointer = #stack.stack + 1
     end
-    stack_start_line = draw_help()
+    stack_start_line, help_page = draw_info_window(helpstrings, help_page)
     draw_status_line()
     stack:redraw(stack_start_line)
     draw_entry_line()
