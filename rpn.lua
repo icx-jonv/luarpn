@@ -15,6 +15,7 @@ local helpstrings = {
     {txt = "^H - Hexadecimal"},
     {txt = "w - swap"},
     {txt = "Up/Dn - copy item"},
+    {txt = "DEL - delete item"},
     {txt = "n - negate"},
     {txt = "x - EEX"},
     {txt = "y - y^x"},
@@ -209,7 +210,13 @@ function StackClass:AddItem(item)
     end
 end
 
-function StackClass:DropItem()
+function StackClass:DropItem(item)
+    if item and item < #self.stack then
+        local last_item = #self.stack - 1
+        for i = item, last_item do
+            self.stack[i] = self.stack[i+1]
+        end
+    end
     table.remove(self.stack)
 end
 
@@ -434,6 +441,12 @@ keymap[curses.KEY_BACKSPACE] = function(stack)
 end
 -- some terminals issue a 127 for the backspace key ??
 keymap[127] = keymap[curses.KEY_BACKSPACE]
+
+keymap[curses.KEY_DC] = function(stack)
+    if nav_pointer ~= #stack.stack + 1 then
+        stack:DropItem(nav_pointer)
+    end
+end
 
 keymap[CTRL_P] = function(stack)
     stack:DropStack()
