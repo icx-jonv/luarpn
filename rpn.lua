@@ -10,6 +10,7 @@ local helpstrings = {
     {txt = "~ - show stats"},
     {txt = "^P - purge stack"},
     {txt = "^R - Real/Bin Tgl"},
+    {txt = "^G - deg/rad Tgl"},
     {txt = "^B - Binary"},
     {txt = "^D - Decimal"},
     {txt = "^H - Hexadecimal"},
@@ -57,16 +58,18 @@ local Config = ConfigClass(os.getenv("HOME") .. "/.luarpn")
 local settings = Config:Load()
 if not settings then
     settings = {}
-    settings.RadixMode = "Hex"
-    settings.stack = {}
 end
+settings.RadixMode = settings.RadixMode or "Hex"
+settings.angle_units = settings.angle_units or "rad"
+settings.stack = settings.stack or {}
 
 local KEY_ESCAPE = 27
-local CTRL_R = 18
-local CTRL_H = 8
-local CTRL_D = 4
 local CTRL_B = 2
+local CTRL_D = 4
+local CTRL_G = 7
+local CTRL_H = 8
 local CTRL_P = 16
+local CTRL_R = 18
 local BIN_CODES = {['0']=' 0000', ['1']=' 0001', ['2']=' 0010', ['3']=' 0011', ['4']=' 0100', ['5']=' 0101', ['6']=' 0110', ['7']=' 0111', ['8']=' 1000', ['9']=' 1001', ['a']=' 1010', ['b']=' 1011', ['c']=' 1100', ['d']=' 1101', ['e']=' 1110', ['f']=' 1111'}
 
 -- Item Definitions
@@ -347,6 +350,84 @@ function StackClass:Negate()
     table.insert(self.stack, a:new{value=-a.value, label = a.label})
 end
 
+function StackClass:Sin()
+    if #self.stack < 1 then return end
+    local a = table.remove(self.stack)
+    local x = 0
+    if settings.angle_units == "rad" then
+        x = math.sin(a.value)
+    elseif settings.angle_units == "deg" then
+        x = math.sin(a.value * math.pi / 180)
+    end
+    table.insert(self.stack, a:new{value=x, label = a.label})
+end
+
+function StackClass:ArcSin()
+    if #self.stack < 1 then return end
+    local a = table.remove(self.stack)
+    local x = 0
+    if a.value < -1 or a.value > 1 then
+        table.insert(self.stack, a)
+        return
+    end
+    if settings.angle_units == "rad" then
+        x = math.asin(a.value)
+    elseif settings.angle_units == "deg" then
+        x = math.asin(a.value) * 180 / math.pi
+    end
+    table.insert(self.stack, a:new{value=x, label = a.label})
+end
+
+function StackClass:Cos()
+    if #self.stack < 1 then return end
+    local a = table.remove(self.stack)
+    local x = 0
+    if settings.angle_units == "rad" then
+        x = math.cos(a.value)
+    elseif settings.angle_units == "deg" then
+        x = math.cos(a.value * math.pi / 180)
+    end
+    table.insert(self.stack, a:new{value=x, label = a.label})
+end
+
+function StackClass:ArcCos()
+    if #self.stack < 1 then return end
+    local a = table.remove(self.stack)
+    local x = 0
+    if a.value < -1 or a.value > 1 then
+        table.insert(self.stack, a)
+        return
+    end
+    if settings.angle_units == "rad" then
+        x = math.acos(a.value)
+    elseif settings.angle_units == "deg" then
+        x = math.acos(a.value) / math.pi * 180
+    end
+    table.insert(self.stack, a:new{value=x, label = a.label})
+end
+
+function StackClass:Tan()
+    if #self.stack < 1 then return end
+    local a = table.remove(self.stack)
+    if settings.angle_units == "rad" then
+        x = math.tan(a.value)
+    elseif settings.angle_units == "deg" then
+        x = math.tan(a.value * math.pi / 180)
+    end
+    table.insert(self.stack, a:new{value=x, label = a.label})
+end
+
+function StackClass:ArcTan()
+    if #self.stack < 1 then return end
+    local a = table.remove(self.stack)
+    if settings.angle_units == "rad" then
+        x = math.atan(a.value)
+    elseif settings.angle_units == "deg" then
+        x = math.atan(a.value) / math.pi * 180
+    end
+    table.insert(self.stack, a:new{value=x, label = a.label})
+end
+
 function StackClass:Swap()
     if #self.stack < 2 then return end
     local a = table.remove(self.stack)
@@ -537,6 +618,42 @@ keymap['W'] = function(stack)
     entry_line = ""
 end
 
+keymap['s'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:Cos()
+    entry_line = ""
+end
+
+keymap['S'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:ArcCos()
+    entry_line = ""
+end
+
+keymap['o'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:Sin()
+    entry_line = ""
+end
+
+keymap['O'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:ArcSin()
+    entry_line = ""
+end
+
+keymap['t'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:Tan()
+    entry_line = ""
+end
+
+keymap['t'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:ArcTan()
+    entry_line = ""
+end
+
 keymap['\n'] = function(stack)
     stack:AddItem(entry_line)
     entry_line=""
@@ -584,6 +701,14 @@ end
 keymap[CTRL_R] = function(stack)
     if entry_line == "" then
         stack:ToggleRealBinary()
+    end
+end
+
+keymap[CTRL_G] = function(stack)
+    if settings.angle_units == "rad" then
+        settings.angle_units = "deg"
+    elseif settings.angle_units == "deg" then
+        settings.angle_units = "rad"
     end
 end
 
@@ -700,11 +825,12 @@ function draw_statistics_window()
 end
 
 function draw_status_line()
+    local status_len = window_x - 4
     if stack.status == "" then
-        mvaddstr(0, 0, string.format("%"..window_x.."s", stack.status))
+        mvaddstr(0, 0, string.format(" %s%"..status_len.."s", settings.angle_units, stack.status))
     else
         stdscr:attron(curses.A_STANDOUT)
-        mvaddstr(0, 0, string.format("%"..window_x.."s", stack.status))
+        mvaddstr(0, 0, string.format(" %s%"..status_len.."s", settings.angle_units, stack.status))
         stdscr:attroff(curses.A_STANDOUT)
     end
 end
