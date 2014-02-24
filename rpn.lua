@@ -118,11 +118,16 @@ function Bin:__tostring()
     end
     local formattedNumber = self:GetNumber()
     if settings.RadixMode == "Hex" then
-        return string.format("%s%sh", label, formattedNumber)
+        return string.format("%s%sh", label, self:GetNumber())
     elseif settings.RadixMode == "Bin" then
-        return string.format("%s%sb", label, formattedNumber)
+        local string_num = ""
+        local num = string.format("%x", math.floor(self.value))
+        for i=1,#num do
+            string_num = string_num .. BIN_CODES[string.sub(num, i, i)]
+        end
+        return string.format("#%sb", string_num)
     elseif settings.RadixMode == "Dec" then
-        return string.format("%s%sd", label, formattedNumber)
+        return string.format("%s%sd", label, self:GetNumber())
     end
 end
 function Bin:GetNumber()
@@ -132,9 +137,9 @@ function Bin:GetNumber()
         local string_num = ""
         local num = string.format("%x", math.floor(self.value))
         for i=1,#num do
-            string_num = string_num .. BIN_CODES[string.sub(num, i, i)]
+            string_num = string_num .. string.sub(BIN_CODES[string.sub(num, i, i)], 2)
         end
-        return string.format("#%s", string_num)
+        return string.format("# %s", string_num)
     elseif settings.RadixMode == "Dec" then
         return string.format("# %d", math.floor(self.value))
     end
