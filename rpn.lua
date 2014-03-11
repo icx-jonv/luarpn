@@ -29,6 +29,9 @@ local helpstrings = {
     {txt = "m - Modulo"},
     {txt = "M - !"},
     {txt = "W - 1/x"},
+    {txt = "s/S - sin/asin"},
+    {txt = "o/O - cos/acos"},
+    {txt = "t/T - tan/atan"},
     {txt = "\" - Add label"},
 }
 
@@ -648,7 +651,7 @@ keymap['t'] = function(stack)
     entry_line = ""
 end
 
-keymap['t'] = function(stack)
+keymap['T'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:ArcTan()
     entry_line = ""
@@ -842,7 +845,8 @@ while input_char ~= 'Q' do -- not a curses reference
     stack_start_line = 1
     if help_page ~=0 then
         stack_start_line, help_page = draw_info_window(helpstrings, help_page)
-    elseif statistic_page ~=0 then
+    end
+    if statistic_page ~=0 and help_page == 0 then
         stack_start_line = draw_statistics_window()
     end
     draw_status_line()
