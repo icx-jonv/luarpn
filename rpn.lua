@@ -1,5 +1,4 @@
 #!/usr/bin/lua
---package.path =  package.path .. ";" .. installdir .. "/?.lua"
 local curses = require 'curses'
 local ConfigClass = require "configuration"
 require "class"
@@ -794,7 +793,7 @@ function draw_info_window(strings, page)
     end
     for i = start_item, last_item do
         local x, y = math.modf((i-start_item)/lines)
-        y = y * lines + 1
+        y = math.floor(y * lines + 1 + 0.5)
         x = x * spacing
         local line_width = window_x - x
         mvaddstr(y, x, string.format("%-"..line_width.."s", strings[i].txt))
