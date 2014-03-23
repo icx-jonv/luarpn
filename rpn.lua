@@ -828,13 +828,9 @@ end
 
 function draw_status_line()
     local status_len = window_x - 4
-    if stack.status == "" then
-        mvaddstr(0, 0, string.format(" %s%"..status_len.."s", settings.angle_units, stack.status))
-    else
-        stdscr:attron(curses.A_STANDOUT)
-        mvaddstr(0, 0, string.format(" %s%"..status_len.."s", settings.angle_units, stack.status))
-        stdscr:attroff(curses.A_STANDOUT)
-    end
+    stdscr:attron(curses.A_STANDOUT)
+    mvaddstr(0, 0, string.format(" %s%"..status_len.."s", settings.angle_units, stack.status))
+    stdscr:attroff(curses.A_STANDOUT)
 end
 
 while input_char ~= 'Q' do -- not a curses reference
