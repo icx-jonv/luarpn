@@ -10,9 +10,7 @@ local helpstrings = {
     {txt = "^P - purge stack"},
     {txt = "^R - Real/Bin Tgl"},
     {txt = "^G - deg/rad Tgl"},
-    {txt = "^B - Binary"},
-    {txt = "^D - Decimal"},
-    {txt = "^H - Hexadecimal"},
+    {txt = "^B - Toggle Radix"},
     {txt = "w - swap"},
     {txt = "Up/Dn - copy item"},
     {txt = "DEL - delete item"},
@@ -52,7 +50,7 @@ local mvaddstr = function (...) stdscr:mvaddstr(...) end
 
 local entry_line = ""
 local nav_pointer = 1
-local base = {Hex = 16, Dec = 10, Bin = 2}
+local base = {HEX = 16, DEC = 10, BIN = 2, OCT = 8}
 local help_page = 0
 local statistic_page = 0
 
@@ -61,8 +59,16 @@ local settings = Config:Load()
 if not settings then
     settings = {}
 end
-settings.RadixMode = settings.RadixMode or "Hex"
-settings.angle_units = settings.angle_units or "rad"
+RadixModes = {"DEC", "BIN", "OCT", "HEX"}
+local RadixModeIndex = 1
+for i, v in pairs(RadixModes) do
+    RadixModeIndex = i
+    if v == settings.RadixMode then
+        break
+    end
+end
+settings.RadixMode = RadixModes[RadixModeIndex]
+settings.angle_units = settings.angle_units or "RAD"
 settings.stack = settings.stack or {}
 
 local KEY_ESCAPE = 27
@@ -123,31 +129,35 @@ function Bin:__tostring()
         label = self.label .. ": "
     end
     local formattedNumber = self:GetNumber()
-    if settings.RadixMode == "Hex" then
+    if settings.RadixMode == "HEX" then
         return string.format("%s%sh", label, self:GetNumber())
-    elseif settings.RadixMode == "Bin" then
+    elseif settings.RadixMode == "BIN" then
         local string_num = ""
         local num = string.format("%x", math.floor(self.value))
         for i=1,#num do
             string_num = string_num .. BIN_CODES[string.sub(num, i, i)]
         end
         return string.format("#%sb", string_num)
-    elseif settings.RadixMode == "Dec" then
+    elseif settings.RadixMode == "DEC" then
         return string.format("%s%sd", label, self:GetNumber())
+    elseif settings.RadixMode == "OCT" then
+        return string.format("%s%so", label, self:GetNumber())
     end
 end
 function Bin:GetNumber()
-    if settings.RadixMode == "Hex" then
+    if settings.RadixMode == "HEX" then
         return string.format("# %x", math.floor(self.value))
-    elseif settings.RadixMode == "Bin" then
+    elseif settings.RadixMode == "BIN" then
         local string_num = ""
         local num = string.format("%x", math.floor(self.value))
         for i=1,#num do
             string_num = string_num .. string.sub(BIN_CODES[string.sub(num, i, i)], 2)
         end
         return string.format("# %s", string_num)
-    elseif settings.RadixMode == "Dec" then
+    elseif settings.RadixMode == "DEC" then
         return string.format("# %d", math.floor(self.value))
+    elseif settings.RadixMode == "OCT" then
+        return string.format("# %o", math.floor(self.value))
     end
 end
 function Bin:new(item) return Bin(item or self.value) end
@@ -356,9 +366,9 @@ function StackClass:Sin()
     if #self.stack < 1 then return end
     local a = table.remove(self.stack)
     local x = 0
-    if settings.angle_units == "rad" then
+    if settings.angle_units == "RAD" then
         x = math.sin(a.value)
-    elseif settings.angle_units == "deg" then
+    elseif settings.angle_units == "DEG" then
         x = math.sin(a.value * math.pi / 180)
     end
     table.insert(self.stack, a:new{value=x, label = a.label})
@@ -372,9 +382,9 @@ function StackClass:ArcSin()
         table.insert(self.stack, a)
         return
     end
-    if settings.angle_units == "rad" then
+    if settings.angle_units == "RAD" then
         x = math.asin(a.value)
-    elseif settings.angle_units == "deg" then
+    elseif settings.angle_units == "DEG" then
         x = math.asin(a.value) * 180 / math.pi
     end
     table.insert(self.stack, a:new{value=x, label = a.label})
@@ -384,9 +394,9 @@ function StackClass:Cos()
     if #self.stack < 1 then return end
     local a = table.remove(self.stack)
     local x = 0
-    if settings.angle_units == "rad" then
+    if settings.angle_units == "RAD" then
         x = math.cos(a.value)
-    elseif settings.angle_units == "deg" then
+    elseif settings.angle_units == "DEG" then
         x = math.cos(a.value * math.pi / 180)
     end
     table.insert(self.stack, a:new{value=x, label = a.label})
@@ -400,9 +410,9 @@ function StackClass:ArcCos()
         table.insert(self.stack, a)
         return
     end
-    if settings.angle_units == "rad" then
+    if settings.angle_units == "RAD" then
         x = math.acos(a.value)
-    elseif settings.angle_units == "deg" then
+    elseif settings.angle_units == "DEG" then
         x = math.acos(a.value) / math.pi * 180
     end
     table.insert(self.stack, a:new{value=x, label = a.label})
@@ -411,9 +421,9 @@ end
 function StackClass:Tan()
     if #self.stack < 1 then return end
     local a = table.remove(self.stack)
-    if settings.angle_units == "rad" then
+    if settings.angle_units == "RAD" then
         x = math.tan(a.value)
-    elseif settings.angle_units == "deg" then
+    elseif settings.angle_units == "DEG" then
         x = math.tan(a.value * math.pi / 180)
     end
     table.insert(self.stack, a:new{value=x, label = a.label})
@@ -422,9 +432,9 @@ end
 function StackClass:ArcTan()
     if #self.stack < 1 then return end
     local a = table.remove(self.stack)
-    if settings.angle_units == "rad" then
+    if settings.angle_units == "RAD" then
         x = math.atan(a.value)
-    elseif settings.angle_units == "deg" then
+    elseif settings.angle_units == "DEG" then
         x = math.atan(a.value) / math.pi * 180
     end
     table.insert(self.stack, a:new{value=x, label = a.label})
@@ -478,12 +488,12 @@ keymap['6'] = function(stack) catNumber('6') end
 keymap['7'] = function(stack) catNumber('7') end
 keymap['8'] = function(stack) catNumber('8') end
 keymap['9'] = function(stack) catNumber('9') end
-keymap['a'] = function(stack) if settings.RadixMode == "Hex" then keymap['#'](stack) catNumber('a') end end
-keymap['b'] = function(stack) if settings.RadixMode == "Hex" then keymap['#'](stack) catNumber('b') end end
-keymap['c'] = function(stack) if settings.RadixMode == "Hex" then keymap['#'](stack) catNumber('c') end end
-keymap['d'] = function(stack) if settings.RadixMode == "Hex" then keymap['#'](stack) catNumber('d') end end
-keymap['e'] = function(stack) if settings.RadixMode == "Hex" then keymap['#'](stack) catNumber('e') end end
-keymap['f'] = function(stack) if settings.RadixMode == "Hex" then keymap['#'](stack) catNumber('f') end end
+keymap['a'] = function(stack) if settings.RadixMode == "HEX" then keymap['#'](stack) catNumber('a') end end
+keymap['b'] = function(stack) if settings.RadixMode == "HEX" then keymap['#'](stack) catNumber('b') end end
+keymap['c'] = function(stack) if settings.RadixMode == "HEX" then keymap['#'](stack) catNumber('c') end end
+keymap['d'] = function(stack) if settings.RadixMode == "HEX" then keymap['#'](stack) catNumber('d') end end
+keymap['e'] = function(stack) if settings.RadixMode == "HEX" then keymap['#'](stack) catNumber('e') end end
+keymap['f'] = function(stack) if settings.RadixMode == "HEX" then keymap['#'](stack) catNumber('f') end end
 keymap['A'] = keymap['a']
 keymap['B'] = keymap['b']
 keymap['C'] = keymap['c']
@@ -688,16 +698,9 @@ keymap['n'] = function(stack)
     end
 end
 
-keymap[CTRL_D] = function(stack)
-    settings.RadixMode = "Dec"
-end
-
-keymap[CTRL_H] = function(stack)
-    settings.RadixMode = "Hex"
-end
-
 keymap[CTRL_B] = function(stack)
-    settings.RadixMode = "Bin"
+    RadixModeIndex = math.mod(RadixModeIndex, #RadixModes) + 1
+    settings.RadixMode = RadixModes[RadixModeIndex]
 end
 
 keymap[CTRL_R] = function(stack)
@@ -707,10 +710,10 @@ keymap[CTRL_R] = function(stack)
 end
 
 keymap[CTRL_G] = function(stack)
-    if settings.angle_units == "rad" then
-        settings.angle_units = "deg"
-    elseif settings.angle_units == "deg" then
-        settings.angle_units = "rad"
+    if settings.angle_units == "RAD" then
+        settings.angle_units = "DEG"
+    elseif settings.angle_units == "DEG" then
+        settings.angle_units = "RAD"
     end
 end
 
@@ -796,7 +799,7 @@ function draw_info_window(strings, page)
         y = math.floor(y * lines + 1 + 0.5)
         x = x * spacing
         local line_width = window_x - x
-        mvaddstr(y, x, string.format("%-"..line_width.."s", strings[i].txt))
+        mvaddstr(y, x, string.format("%-"..line_width.."s", tostring(x)..","..tostring(y)..": "..strings[i].txt))
     end
     stdscr:mvhline(lines+1, 0, curses.ACS_HLINE, window_x)
     stdscr:refresh()
@@ -827,9 +830,9 @@ function draw_statistics_window()
 end
 
 function draw_status_line()
-    local status_len = window_x - 4
+    local status_len = window_x - 7
     stdscr:attron(curses.A_STANDOUT)
-    mvaddstr(0, 0, string.format(" %s%"..status_len.."s", settings.angle_units, stack.status))
+    mvaddstr(0, 0, string.format("%s %s%"..status_len.."s", settings.angle_units, settings.RadixMode, stack.status))
     stdscr:attroff(curses.A_STANDOUT)
 end
 
