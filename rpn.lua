@@ -799,7 +799,8 @@ function draw_info_window(strings, page)
         y = math.floor(y * lines + 1 + 0.5)
         x = x * spacing
         local line_width = window_x - x
-        mvaddstr(y, x, string.format("%-"..line_width.."s", tostring(x)..","..tostring(y)..": "..strings[i].txt))
+        --mvaddstr(y, x, string.format("%-"..line_width.."s", tostring(x)..","..tostring(y)..": "..strings[i].txt))
+        mvaddstr(y, x, string.format("%-"..line_width.."s", strings[i].txt))
     end
     stdscr:mvhline(lines+1, 0, curses.ACS_HLINE, window_x)
     stdscr:refresh()
