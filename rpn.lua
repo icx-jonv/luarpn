@@ -745,6 +745,7 @@ end
 keymap[curses.KEY_RESIZE] = function(stack)
     stdscr:clear()
     window_y, window_x = stdscr:getmaxyx()
+    window_x = math.min(window_x, 99)
 end
 
 keymap['"'] = function(stack)
