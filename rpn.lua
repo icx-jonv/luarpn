@@ -29,6 +29,7 @@ local helpstrings = {
     {txt = "s/S - sin/asin"},
     {txt = "o/O - cos/acos"},
     {txt = "t/T - tan/atan"},
+    {txt = "p - Pi"},
     {txt = "\" - Add label"},
 }
 
@@ -543,6 +544,12 @@ end
 
 keymap[CTRL_P] = function(stack)
     stack:DropStack()
+end
+
+keymap['p'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:AddItem(math.pi)
+    entry_line = ""
 end
 
 keymap['+'] = function(stack)
