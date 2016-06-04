@@ -845,7 +845,7 @@ function draw_status_line()
     stdscr:attroff(curses.A_STANDOUT)
 end
 
-while input_char ~= 'Q' do -- not a curses reference
+while string.sub(entry_line, 1, 1) =='"' or input_char ~= 'Q' do -- not a curses reference
     if input_char ~= curses.KEY_UP and input_char ~= curses.KEY_DOWN then
         nav_pointer = #stack.stack + 1
     end
