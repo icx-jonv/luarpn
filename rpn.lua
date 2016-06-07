@@ -31,6 +31,8 @@ local helpstrings = {
     {txt = "s/S - sin/asin"},
     {txt = "o/O - cos/acos"},
     {txt = "t/T - tan/atan"},
+    {txt = "u/U - undo/redo"},
+    {txt = "p - Pi"},
     {txt = "\" - Add label"},
 }
 
@@ -55,6 +57,7 @@ local nav_pointer = 1
 local base = {HEX = 16, DEC = 10, BIN = 2, OCT = 8}
 local help_page = 0
 local statistic_page = 0
+local curr_stack = 1
 
 local Config = ConfigClass(os.getenv("HOME") .. "/.luarpn")
 local settings = Config:Load()
@@ -480,6 +483,7 @@ end
 -- keymaps
 ----------
 local keymap = {}
+local affect_stack = {}
 keymap['0'] = function(stack) catNumber('0') end
 keymap['1'] = function(stack) catNumber('1') end
 keymap['2'] = function(stack) catNumber('2') end
@@ -502,7 +506,30 @@ keymap['C'] = keymap['c']
 keymap['D'] = keymap['d']
 keymap['E'] = keymap['e']
 keymap['F'] = keymap['f']
+affect_stack['0'] = false
+affect_stack['1'] = false
+affect_stack['2'] = false
+affect_stack['3'] = false
+affect_stack['4'] = false
+affect_stack['5'] = false
+affect_stack['6'] = false
+affect_stack['7'] = false
+affect_stack['8'] = false
+affect_stack['9'] = false
+affect_stack['a'] = false
+affect_stack['b'] = false
+affect_stack['c'] = false
+affect_stack['d'] = false
+affect_stack['e'] = false
+affect_stack['f'] = false
+affect_stack['A'] = false
+affect_stack['B'] = false
+affect_stack['C'] = false
+affect_stack['D'] = false
+affect_stack['E'] = false
+affect_stack['F'] = false
 
+affect_stack['#'] = false
 keymap['#'] = function(stack)
     if entry_line == "" then
         entry_line = "# "
@@ -511,12 +538,14 @@ keymap['#'] = function(stack)
     end
 end
 
+affect_stack['.'] = false
 keymap['.'] = function(stack)
     if not string.find(entry_line, '%.') and not string.find(entry_line, "^# ") then
         catNumber('.')
     end
 end
 
+affect_stack['x'] = false
 keymap['x'] = function (stack)
     if entry_line == "" then
         entry_line = "1e"
@@ -525,6 +554,7 @@ keymap['x'] = function (stack)
     end
 end
 
+affect_stack[curses.KEY_BACKSPACE] = true
 keymap[curses.KEY_BACKSPACE] = function(stack)
     if entry_line == "" then
         stack:DropItem()
@@ -535,153 +565,194 @@ keymap[curses.KEY_BACKSPACE] = function(stack)
     end
 end
 -- some terminals issue a 127 for the backspace key ??
+affect_stack[127] = true
 keymap[127] = keymap[curses.KEY_BACKSPACE]
 
+affect_stack[curses.KEY_DC] = true
 keymap[curses.KEY_DC] = function(stack)
     if nav_pointer ~= #stack.stack + 1 then
         stack:DropItem(nav_pointer)
     end
 end
 
+affect_stack[CTRL_P] = true
 keymap[CTRL_P] = function(stack)
     stack:DropStack()
 end
 
+affect_stack['p'] = true
+keymap['p'] = function(stack)
+    if entry_line ~= "" then stack:AddItem(entry_line) end
+    stack:AddItem(math.pi)
+    entry_line = ""
+end
+
+affect_stack['+'] = true
 keymap['+'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Addition()
     entry_line = ""
 end
 
+affect_stack['-'] = true
 keymap['-'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Subtract()
     entry_line = ""
 end
 
+affect_stack['*'] = true
 keymap['*'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Multiply()
     entry_line = ""
 end
 
+affect_stack['/'] = true
 keymap['/'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Divide()
     entry_line = ""
 end
 
+affect_stack['y'] = true
 keymap['y'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Power()
     entry_line = ""
 end
 
+affect_stack['q'] = true
 keymap['q'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Sqrt()
     entry_line = ""
 end
 
+affect_stack['l'] = true
 keymap['l'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:NatLog()
     entry_line = ""
 end
 
+affect_stack['L'] = true
 keymap['L'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Exp()
     entry_line = ""
 end
 
+affect_stack['g'] = true
 keymap['g'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Log10()
     entry_line = ""
 end
 
+affect_stack['G'] = true
 keymap['G'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Pow10()
     entry_line = ""
 end
 
+affect_stack['m'] = true
 keymap['m'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Mod()
     entry_line = ""
 end
 
+affect_stack['M'] = true
 keymap['M'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Factorial()
     entry_line = ""
 end
+
+affect_stack['!'] = true
 keymap['!'] = keymap['M']
 
+affect_stack['Y'] = true
 keymap['Y'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Square()
     entry_line = ""
 end
 
+affect_stack['W'] = true
 keymap['W'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Reciprocal()
     entry_line = ""
 end
 
+affect_stack['s'] = true
 keymap['s'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Cos()
     entry_line = ""
 end
 
+affect_stack['S'] = true
 keymap['S'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:ArcCos()
     entry_line = ""
 end
 
+affect_stack['o'] = true
 keymap['o'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Sin()
     entry_line = ""
 end
 
+affect_stack['O'] = true
 keymap['O'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:ArcSin()
     entry_line = ""
 end
 
+affect_stack['t'] = true
 keymap['t'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Tan()
     entry_line = ""
 end
 
+affect_stack['T'] = true
 keymap['T'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:ArcTan()
     entry_line = ""
 end
 
+affect_stack['\n'] = true
 keymap['\n'] = function(stack)
     stack:AddItem(entry_line)
     entry_line=""
 end
+
+affect_stack[' '] = true
 keymap[' '] = keymap['\n']
+
+affect_stack[0xd] = true
 keymap[0xd] = keymap['\n']
+
+affect_stack[0xa] = true
 keymap[0xa] = keymap['\n']
 
+affect_stack['w'] = true
 keymap['w'] = function(stack)
     if entry_line ~= "" then stack:AddItem(entry_line) end
     stack:Swap()
     entry_line = ""
 end
 
+affect_stack['n'] = true
 keymap['n'] = function(stack)
     if string.find(entry_line, "^# ") then
         return
@@ -700,17 +771,20 @@ keymap['n'] = function(stack)
     end
 end
 
+affect_stack[CTRL_B] = false
 keymap[CTRL_B] = function(stack)
     RadixModeIndex = math.mod(RadixModeIndex, #RadixModes) + 1
     settings.RadixMode = RadixModes[RadixModeIndex]
 end
 
+affect_stack[CTRL_R] = true
 keymap[CTRL_R] = function(stack)
     if entry_line == "" then
         stack:ToggleRealBinary()
     end
 end
 
+affect_stack[CTRL_G] = false
 keymap[CTRL_G] = function(stack)
     if settings.angle_units == "RAD" then
         settings.angle_units = "DEG"
@@ -719,6 +793,7 @@ keymap[CTRL_G] = function(stack)
     end
 end
 
+affect_stack[curses.KEY_UP] = false
 keymap[curses.KEY_UP] = function(stack)
     if nav_pointer > 1 then
         nav_pointer = nav_pointer-1
@@ -726,6 +801,7 @@ keymap[curses.KEY_UP] = function(stack)
     entry_line = stack.stack[nav_pointer]:GetNumber()
 end
 
+affect_stack[curses.KEY_DOWN] = false
 keymap[curses.KEY_DOWN] = function(stack)
     if nav_pointer < #stack.stack then
         nav_pointer = nav_pointer+1
@@ -736,20 +812,24 @@ keymap[curses.KEY_DOWN] = function(stack)
     end
 end
 
+affect_stack['?'] = false
 keymap['?'] = function(stack)
     help_page = help_page + 1
 end
 
+affect_stack['~'] = false
 keymap['~'] = function(stack)
     statistic_page = statistic_page + 1
 end
 
+affect_stack[curses.KEY_RESIZE] = false
 keymap[curses.KEY_RESIZE] = function(stack)
     stdscr:clear()
     window_y, window_x = stdscr:getmaxyx()
     window_x = math.min(window_x, 99)
 end
 
+affect_stack['"'] = false
 keymap['"'] = function(stack)
     if entry_line == "" then
         entry_line = '"'
@@ -758,7 +838,8 @@ end
 
 -- Main application code
 ------------------------
-local stack = StackClass{stack = settings.stack, status = "? for keymap help"}
+local stack = {}
+stack[curr_stack] = StackClass{stack = settings.stack, status = "? for keymap help"}
 local stack_start_line = 1
 
 function catNumber(number)
@@ -810,7 +891,7 @@ function draw_info_window(strings, page)
     return lines + 2, page
 end
 
-function draw_statistics_window()
+function draw_statistics_window(stack)
     local sum, count, stack_copy, stats = 0, 0, {}, {}
 
     for k, v in ipairs(stack.stack) do
@@ -833,26 +914,39 @@ function draw_statistics_window()
     return stack_start_line, statistic_page
 end
 
-function draw_status_line()
+function draw_status_line(stack)
     local status_len = window_x - 7
     stdscr:attron(curses.A_STANDOUT)
     mvaddstr(0, 0, string.format("%s %s%"..status_len.."s", settings.angle_units, settings.RadixMode, stack.status))
     stdscr:attroff(curses.A_STANDOUT)
 end
 
-while input_char ~= 'Q' do -- not a curses reference
+function push_stack(stack, stack_pointer)
+    local new_stack_pointer = stack_pointer + 1
+    if stack[new_stack_pointer] then
+        local i = 0
+        while stack[new_stack_pointer + i] do
+            stack[new_stack_pointer + i] = nil
+            i = i + 1
+        end
+    end
+    stack[new_stack_pointer] = StackClass(stack[stack_pointer])
+    return new_stack_pointer
+end
+
+while string.sub(entry_line, 1, 1) =='"' or input_char ~= 'Q' do -- not a curses reference
     if input_char ~= curses.KEY_UP and input_char ~= curses.KEY_DOWN then
-        nav_pointer = #stack.stack + 1
+        nav_pointer = #stack[curr_stack].stack + 1
     end
     stack_start_line = 1
     if help_page ~=0 then
         stack_start_line, help_page = draw_info_window(helpstrings, help_page)
     end
     if statistic_page ~=0 and help_page == 0 then
-        stack_start_line = draw_statistics_window()
+        stack_start_line = draw_statistics_window(stack[curr_stack])
     end
-    draw_status_line()
-    stack:redraw(stack_start_line)
+    draw_status_line(stack[curr_stack])
+    stack[curr_stack]:redraw(stack_start_line)
     draw_entry_line()
     local key = stdscr:getch()
     if key then
@@ -861,25 +955,37 @@ while input_char ~= 'Q' do -- not a curses reference
         else
             input_char = key
         end
-        stack.status = ""
+        stack[curr_stack].status = ""
         if string.sub(entry_line, 1, 1) == '"' then
             if key < 127 and key > 31 then
                 entry_line = entry_line .. input_char
             elseif key == 0xd or key == 0xa then
-                stack:AddLabel(string.sub(entry_line, 2))
+                stack[curr_stack]:AddLabel(string.sub(entry_line, 2))
                 entry_line = ""
             elseif key == curses.KEY_BACKSPACE or key == 127 then
                 entry_line = string.sub(entry_line, 1, -2)
             end
-        elseif keymap[input_char] then keymap[input_char](stack)
+        elseif input_char == 'u' then
+            if stack[curr_stack - 1] then
+                curr_stack = curr_stack - 1
+            end
+        elseif input_char == 'U' then
+            if stack[curr_stack + 1] then
+                curr_stack = curr_stack + 1
+            end
+        elseif keymap[input_char] then
+            if affect_stack[input_char] then
+                curr_stack = push_stack(stack, curr_stack)
+            end
+            keymap[input_char](stack[curr_stack])
         --else stack:AddItem(tostring(input_char))
         end
     end
 end
 
 curses.endwin()
-settings.stack = stack.stack
+settings.stack = stack[curr_stack].stack
 Config:Save(settings)
-if #stack.stack > 0 then
-    print("Last Result: "..tostring(stack.stack[#stack.stack]))
+if #stack[curr_stack].stack > 0 then
+    print("Last Result: "..tostring(stack[curr_stack].stack[#stack[curr_stack].stack]))
 end
