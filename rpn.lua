@@ -2,8 +2,6 @@
 local curses = require 'curses'
 local ConfigClass = require "configuration"
 require "class"
-require "baselog"
-LogInit("luarpn", false)
 
 local helpstrings = {
     {txt = "Q - Quit"},
