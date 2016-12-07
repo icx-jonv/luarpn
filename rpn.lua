@@ -76,6 +76,9 @@ settings.RadixMode = RadixModes[RadixModeIndex]
 settings.angle_units = settings.angle_units or "RAD"
 settings.stack = settings.stack or {}
 
+local functions = ConfigClass("user_functions")
+local user_func = functions:Load()
+
 local KEY_ESCAPE = 27
 local CTRL_B = 2
 local CTRL_D = 4
@@ -908,6 +911,11 @@ function draw_statistics_window(stack)
             local a = stack_copy[math.floor(count/2+0.5)].value
             local b = stack_copy[math.ceil(count/2+0.5)].value
             table.insert(stats, {txt = "Median: " .. (a+b)/2})
+        end
+    end
+    if user_func then
+        for name, func in pairs(user_func) do
+            table.insert(stats, {txt = name.. ": "..(func(stack) or '--')})
         end
     end
     stack_start_line, statistic_page = draw_info_window(stats, statistic_page)
