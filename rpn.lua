@@ -914,8 +914,12 @@ function draw_statistics_window(stack)
         end
     end
     if user_func then
+        stack_copy = {}
+        for i = count, 1, -1 do
+            stack_copy[i]=stack.stack[count-i+1].value
+        end
         for name, func in pairs(user_func) do
-            table.insert(stats, {txt = name.. ": "..(func(stack) or '--')})
+            table.insert(stats, {txt = name.. ": "..(func(stack_copy) or '--')})
         end
     end
     stack_start_line, statistic_page = draw_info_window(stats, statistic_page)
