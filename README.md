@@ -1,10 +1,11 @@
 Lua RPN - command line RPN calculator
 
-Depends on luaposix, mainly curses
+Depends on 'lcurses' luarock
+Logging also depends on 'luasyslog'
 
 To install:
 
-luarocks install luaposix
+luarocks install lcurses
 
-Note: You need to have ncurses library installed or the luarocks install will
-not install the curses part of the package.
+Note: You may need the libncurses5-dev package installed from debian/Ubuntu
+before installing lcurses.  I haven't tried installing it without.

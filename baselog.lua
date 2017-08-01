@@ -1,8 +1,7 @@
-require("syslog")
-
--- for performance improvements
-local syslog_l = syslog.syslog
-local sl = syslog
+-- Depends on the 'luasyslog' luarock
+require 'logging.syslog'
+local syslog = logging.syslog
+local sl = nil
 
 EMERG="logEmergency"
 ALERT="logAlert"
@@ -21,35 +20,35 @@ WARN="logWarning"
 local loggingLevels = {
     logEmergency = {
         enabled=true,
-        strval="LOG_EMERG"
+        strval="FATAL",
     },
     logAlert = {
         enabled=true,
-        strval="LOG_ALERT"
+        strval="FATAL",
     },
     logCritical = {
         enabled=true,
-        strval="LOG_CRIT"
+        strval="FATAL",
     },
     logError = {
         enabled=true,
-        strval="LOG_ERR"
+        strval="ERROR",
     },
     logWarning = {
         enabled=true,
-        strval="LOG_WARNING"
+        strval="WARN",
     },
     logNotice = {
         enabled=false,
-        strval="LOG_NOTICE"
+        strval="INFO",
     },
     logInfo = {
         enabled=true,
-        strval="LOG_INFO"
+        strval="INFO",
     },
     logDebug = {
         enabled=true,
-        strval="LOG_DEBUG"
+        strval="DEBUG",
     }
 }
 
@@ -67,10 +66,10 @@ function LogInit(name, console)
     _Logging_Parameters_.levels = loggingLevels
 
     if _Logging_Parameters_.console == true then
-        -- For console and logfile logging pass in the LOG_PERROR
-        sl.openlog(name,  sl.LOG_PERROR + sl.LOG_ODELAY, "LOG_USER")
+        -- Console needs to be fixed, currently it means nothing
+        sl = syslog(_Logging_Parameters_.name)
     else
-        sl.openlog(name, sl.LOG_ODELAY, "LOG_USER")
+        sl = syslog(_Logging_Parameters_.name)
     end
 end
 
@@ -100,8 +99,9 @@ end
 -- @param level -- the level DEBUG, WARN, etc...
 -- @param msg -- The text string to log
 function Log(level, msg)
+    if not sl then return end
     if _Logging_Parameters_.levels[level].enabled ~= false then
-        syslog_l(_Logging_Parameters_.levels[level].strval, msg)
+        sl:log(_Logging_Parameters_.levels[level].strval, msg)
     end
 end
 
@@ -110,6 +110,5 @@ end
 -- once the application exists.  But it's good practice to call this on any exit
 -- cases you may have in your application.
 function LogClose()
-    sl.closelog()
 end
 
